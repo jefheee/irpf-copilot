@@ -18,17 +18,30 @@ REGRAS DE EXTRAÇÃO E CÁLCULO:
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const file = formData.get('document') as File;
+    // Agora pegamos todos os arquivos enviados com a chave 'documents'
+    const files = formData.getAll('documents') as File[];
 
-    if (!file) {
+    if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Nenhum documento enviado.' }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    // Transforma o array de arquivos no formato esperado pelo Gemini
+    const fileParts = await Promise.all(
+      files.map(async (file) => {
+        const arrayBuffer = await file.arrayBuffer();
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+        return {
+          inlineData: {
+            data: base64Data,
+            mimeType: file.type,
+          },
+        };
+      })
+    );
 
+    // Trocado para o modelo Flash (Cota gratuita liberada)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.1-pro-preview',
+      model: 'gemini-3-flash-preview', 
       systemInstruction: systemPrompt,
       generationConfig: {
         temperature: 0,
@@ -36,13 +49,9 @@ export async function POST(req: Request) {
       },
     });
 
+    // Passamos todos os arquivos e o prompt de ação
     const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: file.type,
-        },
-      },
+      ...fileParts,
       "Processar documentos."
     ]);
 

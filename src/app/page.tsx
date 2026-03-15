@@ -3,22 +3,27 @@
 import { useState } from 'react';
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files) {
+      // Converte o FileList do HTML para um Array nativo do JavaScript
+      setFiles(Array.from(e.target.files));
     }
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     setLoading(true);
+    setResult(null); // Limpa o resultado anterior
     
     const formData = new FormData();
-    formData.append('document', file);
+    // Faz o loop para adicionar todos os arquivos no formData
+    files.forEach((file) => {
+      formData.append('documents', file);
+    });
 
     try {
       const response = await fetch('/api/extract', {
@@ -29,7 +34,7 @@ export default function Home() {
       setResult(data);
     } catch (error) {
       console.error(error);
-      alert("Erro ao processar o documento.");
+      alert("Erro ao processar os documentos.");
     } finally {
       setLoading(false);
     }
@@ -69,21 +74,22 @@ export default function Home() {
             className="hidden" 
             onChange={handleFileChange}
             accept="image/*,application/pdf"
+            multiple 
           />
           <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center space-y-3">
             <span className="text-neutral-600 font-medium">
-              {file ? file.name : 'Clique para anexar um documento ou arraste aqui'}
+              {files.length > 0 ? `${files.length} arquivo(s) selecionado(s)` : 'Clique para anexar documentos ou arraste aqui'}
             </span>
-            <span className="text-xs text-neutral-400">Suporta PDF, JPG e PNG</span>
+            <span className="text-xs text-neutral-400">Suporta múltiplos PDFs, JPGs e PNGs</span>
           </label>
         </div>
 
         <button 
           onClick={handleUpload}
-          disabled={!file || loading}
+          disabled={files.length === 0 || loading}
           className="w-full bg-neutral-900 text-white py-3 rounded-lg font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-all duration-300"
         >
-          {loading ? 'Extraindo dados...' : 'Processar Documento'}
+          {loading ? 'Extraindo dados...' : 'Processar Documentos'}
         </button>
 
         {/* Resultado */}

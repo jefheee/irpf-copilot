@@ -8,24 +8,31 @@ const systemPrompt = `Você é uma API de Extração de Dados Fiscais Brasileiro
 O seu único propósito é analisar documentos enviados pelo utilizador (recibos, informes, faturas, contratos) e devolver um JSON estrito, mapeando os dados extraídos para as "Fichas" exatas do Programa Gerador da Declaração (PGD) da Receita Federal do Brasil.
 
 REGRAS DE EXTRAÇÃO E CÁLCULO:
-1. Formato de Saída: DEVE devolver EXCLUSIVAMENTE um objeto JSON válido. Sem formatação Markdown, sem introduções.
-2. Identificação da Ficha: Avalie a natureza do documento para determinar a "Ficha" e o "Grupo/Código".
+1. Formato de Saída Obrigatório: DEVE devolver EXCLUSIVAMENTE um ARRAY de objetos JSON. Sem formatação Markdown, sem introduções.
+   Estrutura exata exigida:
+   [
+     {
+       "ficha": "Nome da Ficha (ex: Bens e Direitos, Rendimentos Tributáveis)",
+       "dados": {
+         "chave_do_campo": "valor extraído"
+       }
+     }
+   ]
+2. Documentos Inválidos: Se o documento enviado não tiver relação com o Imposto de Renda ou comprovantes financeiros, retorne um array vazio: []
 3. Regra de Bens e Direitos (Veículos - Código 02/01): 
    - A "Discriminação" deve ser um texto longo, em maiúsculas, contendo: MARCA/MODELO, ANO, PLACA, FORMA DE AQUISIÇÃO (se financiado, com ou sem troca), DADOS DO VENDEDOR (NOME e CNPJ/CPF), CONDIÇÕES DE PAGAMENTO.
-   - O campo "situacao_ano_atual" NÃO é o valor de mercado. É a soma ESTRITA de todos os valores EFETIVAMENTE PAGOS até 31/12.
+   - O campo "situacao_ano_atual" NÃO é o valor de mercado. É a soma ESTRITA de todos os valores EFETIVAMENTE PAGOS até 31/12 (Entrada + parcelas pagas no ano).
 4. Regras Gerais: Substitua valores não encontrados ou ilegíveis por null.`;
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    // Agora pegamos todos os arquivos enviados com a chave 'documents'
     const files = formData.getAll('documents') as File[];
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'Nenhum documento enviado.' }, { status: 400 });
     }
 
-    // Transforma o array de arquivos no formato esperado pelo Gemini
     const fileParts = await Promise.all(
       files.map(async (file) => {
         const arrayBuffer = await file.arrayBuffer();
@@ -39,7 +46,6 @@ export async function POST(req: Request) {
       })
     );
 
-    // Trocado para o modelo Flash (Cota gratuita liberada)
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 
       systemInstruction: systemPrompt,
@@ -49,10 +55,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Passamos todos os arquivos e o prompt de ação
     const result = await model.generateContent([
       ...fileParts,
-      "Processar documentos."
+      "Extrair dados em formato de array JSON."
     ]);
 
     const jsonText = result.response.text();

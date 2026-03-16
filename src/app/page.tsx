@@ -40,10 +40,27 @@ export default function Home() {
     }
   };
 
-  const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch (err) {
+      console.error("Falha ao copiar", err);
+      alert("O seu navegador bloqueou a cópia automática.");
+    }
   };
 
   const formatLabel = (key: string) => {
@@ -67,12 +84,9 @@ export default function Home() {
           <p className="text-neutral-500">Extração estruturada de informes e recibos para o Programa Gerador da Declaração.</p>
         </header>
 
-        {/* Quadro de Segurança */}
         <div className="border border-neutral-200 bg-white p-5 rounded-lg shadow-sm flex items-start space-x-4">
           <div className="p-2 bg-neutral-100 rounded-md shrink-0">
-            <svg className="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+            <svg className="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </div>
           <div>
             <h3 className="font-medium text-sm">Privacidade Criptográfica & Retenção Zero</h3>
@@ -82,7 +96,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Área de Upload (Oculta quando existem resultados) */}
         {!result && (
           <>
             <div className="border-2 border-dashed border-neutral-300 bg-white rounded-lg p-10 text-center hover:border-neutral-400 transition-colors duration-300">
@@ -107,14 +120,18 @@ export default function Home() {
             <button 
               onClick={handleUpload}
               disabled={files.length === 0 || loading}
-              className="w-full bg-neutral-900 text-white py-3.5 rounded-lg font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed transition-all shadow-sm"
+              className="w-full bg-neutral-900 text-white py-3.5 rounded-lg font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed transition-all shadow-sm flex justify-center items-center gap-2"
             >
-              {loading ? 'A analisar documentos...' : 'Processar Documentos'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  A analisar documentos...
+                </>
+              ) : 'Processar Documentos'}
             </button>
           </>
         )}
 
-        {/* Tratamento de Erro: Array Vazio (Documento Inválido) */}
         {result && result.length === 0 && (
           <div className="animate-fade-in bg-red-50 border border-red-200 p-6 rounded-xl text-center space-y-4">
             <div className="text-red-600 mx-auto bg-red-100 w-12 h-12 rounded-full flex items-center justify-center">
@@ -122,7 +139,7 @@ export default function Home() {
             </div>
             <div>
               <h3 className="text-red-800 font-medium">Nenhum dado fiscal encontrado</h3>
-              <p className="text-sm text-red-600 mt-1">Os documentos enviados não parecem ser recibos, faturas ou informes de rendimentos válidos para o IRPF.</p>
+              <p className="text-sm text-red-600 mt-1">Os documentos enviados não parecem ser recibos ou informes válidos para o IRPF.</p>
             </div>
             <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 hover:text-red-900 border border-red-300 bg-white px-4 py-2 rounded-lg transition-colors">
               Tentar novamente
@@ -130,7 +147,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Resultado Renderizado em Cards */}
         {result && result.length > 0 && (
           <div className="pt-2 space-y-6 animate-fade-in">
             <div className="flex justify-between items-end border-b border-neutral-200 pb-2">
@@ -165,13 +181,13 @@ export default function Home() {
                           
                           <button 
                             onClick={() => copyToClipboard(stringValue, `${index}-${key}`)}
-                            className="text-neutral-400 hover:text-neutral-900 transition-colors p-2 bg-neutral-50 rounded-md shrink-0"
+                            className="text-neutral-400 hover:text-neutral-900 transition-colors p-2 bg-neutral-50 rounded-md shrink-0 flex items-center justify-center"
                             title="Copiar valor"
                           >
                             {copiedKey === `${index}-${key}` ? (
-                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                             )}
                           </button>
                         </div>

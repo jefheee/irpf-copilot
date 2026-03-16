@@ -112,7 +112,7 @@ export default function Home() {
         setResult(data as ExtractedData);
         setChatMessages([{ 
           role: 'assistant', 
-          content: 'Olá! Já auditei os seus documentos com base nas **novas regras de 2026**. \n\nNo menu lateral, criei as suas **Ações Pendentes**. Clique em qualquer uma delas e eu dou-lhe o passo a passo exato de preenchimento, ou pergunte o que quiser aqui no chat!', 
+          content: 'Olá! Sou o seu Consultor Tributário Pessoal. 🎉\n\nJá analisei tudo o que me enviou e cruzei com as novas regras de 2026 da Receita Federal. Preparei o seu **Plano de Ação** ali no menu lateral para garantir a sua maior restituição possível.\n\nClique em qualquer tarefa para eu lhe mostrar exatamente onde clicar, ou pergunte-me qualquer dúvida!', 
           isNew: true 
         }]);
       } else {
@@ -266,14 +266,20 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ESTADO 1: TELA INICIAL LIMPA (ESTILO CANVA/GOOGLE) */}
-      {!result && (
+{/* ESTADO 1: TELA INICIAL COM ALMA E PROPÓSITO */}
+{!result && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up w-full max-w-4xl mx-auto overflow-y-auto">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-center text-neutral-900 dark:text-white mb-4 tracking-tight">
-            Como posso otimizar a sua <span className="text-blue-600 dark:text-blue-400">declaração</span> hoje?
+          <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border border-blue-100 dark:border-blue-800/30">
+            Inteligência Fiscal 2026
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-center text-neutral-900 dark:text-white mb-4 tracking-tight leading-tight">
+            A sua declaração de IRPF, <br/><span className="text-blue-600 dark:text-blue-400">sem medo da malha fina.</span>
           </h2>
-          <p className="text-neutral-500 dark:text-zinc-400 text-center mb-10 max-w-xl">
-            Faça o upload do seu IRPF anterior e dos novos recibos. A nossa IA cruza os dados com as regras de 2026 e diz-lhe exatamente o que fazer.
+          <p className="text-neutral-600 dark:text-zinc-400 text-center mb-2 max-w-2xl text-lg">
+            Esqueça a confusão do programa da Receita. A nossa inteligência analisa os seus documentos e cria um <strong>guia exato de onde clicar e o que preencher</strong> para maximizar a sua restituição.
+          </p>
+          <p className="text-neutral-400 dark:text-zinc-500 text-center mb-10 max-w-xl text-sm">
+            Basta enviar os seus recibos novos. O envio da declaração do ano passado é <strong>opcional</strong>, mas ajuda-nos a mapear a sua evolução patrimonial.
           </p>
 
           <div className="w-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-3xl shadow-xl p-8 space-y-6">
@@ -281,22 +287,23 @@ export default function Home() {
               <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf,application/json" />
                 <label htmlFor="base-upload" className="cursor-pointer w-full flex flex-col items-center">
-                  <div className={`p-3 rounded-full mb-3 ${baseFile ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-neutral-200 dark:bg-zinc-700 text-neutral-600 dark:text-zinc-300'}`}>
+                  <div className={`p-3 rounded-full mb-3 ${baseFile ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-white dark:bg-zinc-800 shadow-sm text-neutral-500 dark:text-zinc-400'}`}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   </div>
-                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{baseFile ? 'Declaração Anexada' : 'Declaração de 2025 (PDF)'}</span>
-                  {baseFile && <span className="text-xs text-blue-600 mt-1 line-clamp-1 max-w-[200px]">{baseFile.name}</span>}
+                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{baseFile ? 'Declaração Anexada' : 'Declaração de 2025'}</span>
+                  <span className="text-xs text-neutral-400 mt-1 font-medium bg-neutral-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">(Opcional)</span>
+                  {baseFile && <span className="text-xs text-blue-600 mt-2 line-clamp-1 max-w-[200px]">{baseFile.name}</span>}
                 </label>
               </div>
 
               <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
                 <label htmlFor="receipts-upload" className="cursor-pointer w-full flex flex-col items-center">
-                  <div className={`p-3 rounded-full mb-3 ${receiptFiles.length > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-neutral-200 dark:bg-zinc-700 text-neutral-600 dark:text-zinc-300'}`}>
+                  <div className={`p-3 rounded-full mb-3 ${receiptFiles.length > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-white dark:bg-zinc-800 shadow-sm text-blue-500 dark:text-blue-400'}`}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
-                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{receiptFiles.length > 0 ? `${receiptFiles.length} Ficheiro(s) Anexado(s)` : 'Recibos do Ano Novo'}</span>
-                  {receiptFiles.length === 0 && <span className="text-xs text-neutral-400 mt-1">Imagens ou PDFs</span>}
+                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{receiptFiles.length > 0 ? `${receiptFiles.length} Ficheiro(s) Anexado(s)` : 'Novos Recibos e Informes'}</span>
+                  <span className="text-xs text-blue-500 mt-1 font-medium bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">Onde a mágica acontece</span>
                 </label>
               </div>
             </div>
@@ -304,14 +311,14 @@ export default function Home() {
             <button 
               onClick={handleUpload}
               disabled={(!baseFile && receiptFiles.length === 0) || loading}
-              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex justify-center items-center gap-2"
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  A analisar documentos...
+                  A analisar os seus documentos...
                 </>
-              ) : 'Analisar e Auditar IRPF'}
+              ) : 'Analisar e Criar Guia de Preenchimento'}
             </button>
           </div>
         </div>
@@ -367,19 +374,33 @@ export default function Home() {
             {/* CONTEÚDO DO CHAT (O "display: hidden" garante que a IA não esquece a digitação) */}
             <div className={`flex-1 flex flex-col w-full h-full relative ${activeTab === 'assistant' ? 'flex' : 'hidden'}`}>
               
-              {/* O Chat em si */}
-              <div className="flex-1 overflow-y-auto px-4 md:px-10 pt-20 pb-32 space-y-6 custom-scrollbar scroll-smooth">
+{/* O Chat em si COM AVATARES */}
+<div className="flex-1 overflow-y-auto px-4 md:px-10 pt-20 pb-32 space-y-6 custom-scrollbar scroll-smooth">
                 {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex animate-message ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] md:max-w-[75%] p-5 rounded-3xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900 rounded-br-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 text-neutral-800 dark:text-neutral-200 rounded-bl-sm'}`}>
+                  <div key={i} className={`flex animate-message gap-3 ${msg.role === 'user' ? 'justify-end flex-row-reverse' : 'justify-start'}`}>
+                    
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center shadow-sm mt-1 ${msg.role === 'user' ? 'bg-neutral-200 dark:bg-zinc-700 text-neutral-500 dark:text-zinc-400' : 'bg-gradient-to-br from-blue-600 to-blue-500 text-white'}`}>
+                      {msg.role === 'user' ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                      )}
+                    </div>
+
+                    {/* Balão de Mensagem */}
+                    <div className={`max-w-[80%] md:max-w-[70%] p-5 rounded-3xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900 rounded-tr-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 text-neutral-800 dark:text-neutral-200 rounded-tl-sm'}`}>
                       {msg.isNew && msg.role === 'assistant' ? <TypewriterText text={msg.content} /> : <FormattedText text={msg.content} />}
                     </div>
                   </div>
                 ))}
                 
                 {isChatLoading && (
-                  <div className="flex justify-start animate-message">
-                    <div className="bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 p-4 rounded-3xl rounded-bl-sm w-20 h-12 flex items-center justify-center gap-1.5 shadow-sm">
+                  <div className="flex justify-start gap-3 animate-message">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-white flex flex-shrink-0 items-center justify-center shadow-sm mt-1">
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <div className="bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 p-4 rounded-3xl rounded-tl-sm w-20 h-12 flex items-center justify-center gap-1.5 shadow-sm">
                       <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce"></span>
                       <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></span>
                       <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></span>

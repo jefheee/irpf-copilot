@@ -5,21 +5,23 @@ import { useState, useEffect, useRef } from 'react';
 type Message = { role: 'user' | 'assistant'; content: string };
 type Task = { titulo: string; caminho: string; detalhes: string };
 
-// Componente para renderizar quebras de linha e negrito nativamente
 const FormattedText = ({ text }: { text: string }) => {
   return (
-    <>
-      {text.split('\n').map((line, i) => (
-        <p key={i} className="mb-2 last:mb-0">
-          {line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return <strong key={j} className="font-semibold text-neutral-900 dark:text-white">{part.slice(2, -2)}</strong>;
-            }
-            return <span key={j}>{part}</span>;
-          })}
-        </p>
-      ))}
-    </>
+    <div className="space-y-3">
+      {text.split('\n').map((line, i) => {
+        if (!line.trim()) return null;
+        return (
+          <p key={i} className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+            {line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={j} className="font-semibold text-neutral-900 dark:text-white bg-neutral-200/50 dark:bg-neutral-800/50 px-1 rounded">{part.slice(2, -2)}</strong>;
+              }
+              return <span key={j}>{part}</span>;
+            })}
+          </p>
+        );
+      })}
+    </div>
   );
 };
 
@@ -29,19 +31,18 @@ export default function Home() {
   const [result, setResult] = useState<any[] | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'assistant' | 'raw'>('assistant');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Olá! Já analisei seus documentos e montei o plano de ação ao lado. Você pode **clicar nas tarefas** para ver o passo a passo exato, ou me fazer uma pergunta aqui.' }
+    { role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui sobre a sua evolução patrimonial e recibos novos.' }
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Injetor Global do Dark Mode
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -63,7 +64,7 @@ export default function Home() {
     setLoading(true);
     setResult(null);
     setSelectedTask(null);
-    setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei seus documentos e montei o plano de ação ao lado. Você pode **clicar nas tarefas** para ver o passo a passo exato, ou me fazer uma pergunta aqui.' }]);
+    setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }]);
     
     const formData = new FormData();
     files.forEach((file) => formData.append('documents', file));
@@ -118,6 +119,20 @@ export default function Home() {
     } catch (err) { alert("Navegador bloqueou a cópia."); }
   };
 
+  // Dicionário de Correção de Siglas e Nomes
+  const formatLabel = (key: string) => {
+    let formatted = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const acronyms: { [key: string]: string } = {
+      'Cpf': 'CPF', 'Cnpj': 'CNPJ', 'Irrf': 'IRRF', 'Irpf': 'IRPF',
+      'Darf': 'DARF', 'B3': 'B3', 'Fii': 'FII', 'Etf': 'ETF', 
+      'Inss': 'INSS', '13': '13º', 'Pis': 'PIS', 'Cofins': 'COFINS'
+    };
+    for (const [wrong, right] of Object.entries(acronyms)) {
+      formatted = formatted.replace(new RegExp(`\\b${wrong}\\b`, 'g'), right);
+    }
+    return formatted;
+  };
+
   const handleClear = () => {
     setFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null);
   };
@@ -131,8 +146,8 @@ export default function Home() {
         
         <header className="flex justify-between items-center animate-slide-up">
           <div>
-            <h1 className="text-3xl font-medium tracking-tight">IRPF Copilot</h1>
-            <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-1">Seu assistente fiscal movido a IA.</p>
+            <h1 className="text-3xl font-semibold tracking-tight">IRPF Copilot</h1>
+            <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-1">O seu assistente fiscal inteligente.</p>
           </div>
           <button 
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -170,14 +185,14 @@ export default function Home() {
                 <span className="text-neutral-700 dark:text-neutral-200 font-medium text-lg">
                   {files.length > 0 ? `${files.length} ficheiro(s) selecionado(s)` : 'Anexe PDFs e Imagens aqui'}
                 </span>
-                <span className="text-sm text-neutral-400">Arraste a declaração do ano passado e os recibos novos.</span>
+                <span className="text-sm text-neutral-400">Arraste a declaração do ano passado (PDF) e os recibos novos.</span>
               </label>
             </div>
 
             <button 
               onClick={handleUpload}
               disabled={files.length === 0 || loading}
-              className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-4 rounded-xl font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex justify-center items-center gap-2"
+              className="w-full bg-blue-600 text-white py-4 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>
@@ -206,85 +221,101 @@ export default function Home() {
                   Dados Abstraídos
                 </button>
               </div>
-              <button onClick={handleClear} className="text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition underline underline-offset-4">
-                Limpar e Iniciar Novo
+              <button onClick={handleClear} className="text-sm font-medium text-neutral-500 hover:text-red-500 transition underline underline-offset-4">
+                Encerrar Sessão
               </button>
             </div>
 
             {activeTab === 'assistant' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* Coluna Esquerda: Menu do Plano de Ação */}
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                  <h3 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2">Plano de Ação</h3>
+                <div className="lg:col-span-5 space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                  <h3 className="text-lg font-semibold border-b border-neutral-200 dark:border-neutral-800 pb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    Passo a Passo (Ações)
+                  </h3>
                   {tarefas.length > 0 ? (
                     tarefas.map((task, idx) => (
                       <div 
                         key={idx} 
                         onClick={() => setSelectedTask(task)}
-                        className={`cursor-pointer transition-all duration-200 p-4 rounded-xl border ${selectedTask === task ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 border-transparent shadow-md transform scale-[1.02]' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-600 shadow-sm'}`}
+                        className={`cursor-pointer transition-all duration-200 p-4 rounded-xl border ${selectedTask === task ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 shadow-md transform scale-[1.02]' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-blue-200 dark:hover:border-blue-800 shadow-sm'}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${selectedTask === task ? 'bg-white/20 dark:bg-neutral-900/10' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'}`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${selectedTask === task ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'}`}>
                             {idx + 1}
                           </div>
-                          <p className="font-medium text-sm leading-tight">{task.titulo}</p>
+                          <p className={`font-medium text-sm leading-snug ${selectedTask === task ? 'text-blue-900 dark:text-blue-200' : ''}`}>{task.titulo}</p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-neutral-500 text-sm italic">Nenhum plano gerado. A IA não encontrou ações pendentes.</p>
+                    <p className="text-neutral-500 text-sm italic">Nenhuma ação estruturada encontrada.</p>
                   )}
                 </div>
 
                 {/* Coluna Direita: Detalhe da Tarefa OU Chat */}
-                <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded-xl shadow-sm flex flex-col h-[600px] overflow-hidden">
+                <div className="lg:col-span-7 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded-xl shadow-sm flex flex-col h-[600px] overflow-hidden">
                   
                   {selectedTask ? (
-                    // Tela de Detalhe da Tarefa
                     <div className="flex flex-col h-full animate-slide-up">
-                      <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-                        <h3 className="font-medium text-sm text-neutral-500 dark:text-neutral-400">Guia Passo a Passo</h3>
-                        <button onClick={() => setSelectedTask(null)} className="text-xs font-medium bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 px-3 py-1.5 rounded-md transition">
+                      <div className="bg-neutral-50 dark:bg-neutral-800/80 p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+                        <h3 className="font-medium text-sm text-neutral-500 dark:text-neutral-400">Guia de Preenchimento</h3>
+                        <button onClick={() => setSelectedTask(null)} className="text-xs font-medium bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 px-3 py-1.5 rounded-md transition flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                           Voltar ao Chat
                         </button>
                       </div>
-                      <div className="p-6 overflow-y-auto space-y-6">
-                        <h2 className="text-xl font-medium">{selectedTask.titulo}</h2>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">Caminho no Programa</label>
-                          <div className="bg-neutral-100 dark:bg-neutral-800 p-3 rounded-lg font-mono text-sm border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300">
-                            {selectedTask.caminho}
+                      <div className="p-6 overflow-y-auto space-y-8 custom-scrollbar">
+                        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white">{selectedTask.titulo}</h2>
+                        
+                        <div className="space-y-3">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                            Onde clicar no PGD
+                          </label>
+                          <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
+                            <p className="font-mono text-sm text-blue-800 dark:text-blue-300 font-medium tracking-tight">
+                              {selectedTask.caminho}
+                            </p>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-neutral-400">O que fazer</label>
-                          <div className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-200 bg-neutral-50 dark:bg-neutral-950 p-4 rounded-lg border border-neutral-100 dark:border-neutral-800">
+
+                        <div className="space-y-3">
+                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            Como Preencher
+                          </label>
+                          <div className="bg-neutral-50 dark:bg-neutral-950/50 p-5 rounded-lg border border-neutral-100 dark:border-neutral-800">
                             <FormattedText text={selectedTask.detalhes} />
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    // Tela do Chat
                     <>
-                      <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 border-b border-neutral-200 dark:border-neutral-800">
+                      <div className="bg-neutral-50 dark:bg-neutral-800/80 p-4 border-b border-neutral-200 dark:border-neutral-800">
                         <h3 className="font-medium flex items-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                          Pergunte à IA
+                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                          Chat Especialista
                         </h3>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                         {chatMessages.map((msg, i) => (
                           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-tr-sm' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
+                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
                               <FormattedText text={msg.content} />
                             </div>
                           </div>
                         ))}
                         {isChatLoading && (
                           <div className="flex justify-start">
-                            <div className="bg-neutral-100 dark:bg-neutral-800 p-3 rounded-2xl rounded-tl-sm text-sm text-neutral-500 animate-pulse">A analisar...</div>
+                            <div className="bg-neutral-100 dark:bg-neutral-800 p-4 rounded-2xl rounded-tl-sm text-sm text-neutral-500 animate-pulse flex items-center gap-2">
+                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></span>
+                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
+                            </div>
                           </div>
                         )}
                         <div ref={chatEndRef} />
@@ -295,15 +326,15 @@ export default function Home() {
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                          placeholder="Digite sua dúvida..."
-                          className="flex-1 bg-neutral-100 dark:bg-neutral-800 border-none text-sm rounded-lg px-4 py-2 focus:ring-2 focus:ring-neutral-900 dark:focus:ring-white outline-none transition"
+                          placeholder="Ex: Qual foi a minha renda total no ano passado?"
+                          className="flex-1 bg-neutral-100 dark:bg-neutral-800 border-none text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
                         />
                         <button 
                           onClick={handleSendMessage}
                           disabled={!chatInput.trim() || isChatLoading}
-                          className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 p-2.5 rounded-lg disabled:opacity-50 hover:scale-105 transition-transform"
+                          className="bg-blue-600 text-white p-3 rounded-xl disabled:opacity-50 hover:bg-blue-700 transition flex items-center justify-center"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                         </button>
                       </div>
                     </>
@@ -312,24 +343,23 @@ export default function Home() {
               </div>
             )}
 
-            {/* Aba 2: Dados Abstraídos (Sem alterações na lógica) */}
             {activeTab === 'raw' && (
               <div className="space-y-6 animate-slide-up">
                 {result.filter(r => r.ficha !== "Plano de Ação").map((item, index) => (
                   <div key={index} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
                     <div className="bg-neutral-50 dark:bg-neutral-800/50 px-5 py-3 border-b border-neutral-200 dark:border-neutral-800">
-                      <h3 className="font-medium">{item.ficha || "Ficha"}</h3>
+                      <h3 className="font-semibold text-neutral-800 dark:text-neutral-200">{item.ficha || "Ficha"}</h3>
                     </div>
                     <div className="p-5 space-y-4">
                       {item.dados && Object.entries(item.dados).map(([key, value]) => {
                         const stringValue = String(value);
                         const isLong = stringValue.length > 50;
                         return (
-                          <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-center'} pb-3 border-b border-neutral-100 dark:border-neutral-800 last:border-0 last:pb-0`}>
-                            <span className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                          <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-center'} pb-3 border-b border-neutral-100 dark:border-neutral-800/50 last:border-0 last:pb-0`}>
+                            <span className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">{formatLabel(key)}</span>
                             <div className={`flex items-start ${isLong ? 'w-full' : 'sm:max-w-[60%]'} space-x-3`}>
-                              <div className={`text-sm bg-neutral-50 dark:bg-neutral-800 px-3 py-2 rounded-md font-mono ${isLong ? 'w-full text-justify' : ''} break-words`}>{stringValue}</div>
-                              <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-2 bg-neutral-50 dark:bg-neutral-800 rounded-md shrink-0 transition">
+                              <div className={`text-sm bg-neutral-50 dark:bg-neutral-800/50 px-3 py-2 rounded-md font-mono ${isLong ? 'w-full text-justify' : ''} break-words text-neutral-800 dark:text-neutral-300`}>{stringValue}</div>
+                              <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 bg-neutral-50 dark:bg-neutral-800 rounded-md shrink-0 transition" title="Copiar">
                                 {copiedKey === `${index}-${key}` ? <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                               </button>
                             </div>

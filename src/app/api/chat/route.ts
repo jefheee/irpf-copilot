@@ -7,18 +7,16 @@ const genAI = new GoogleGenerativeAI(apiKey!);
 export async function POST(req: Request) {
   try {
     const { message, contextData } = await req.json();
-
     if (!message) return NextResponse.json({ error: 'Mensagem vazia.' }, { status: 400 });
 
-    const systemInstruction = `Você é o IRPF Copilot, um assistente virtual especialista em Imposto de Renda.
-Você tem acesso aos dados extraídos dos documentos do usuário no formato JSON abaixo:
+    const systemInstruction = `Você é o IRPF Copilot, um contador experiente.
+O JSON abaixo contém TODO o contexto extraído dos documentos do usuário (incluindo o PDF da declaração do ano passado e os recibos novos):
 ${JSON.stringify(contextData)}
 
-REGRAS DE POSTURA E RESPOSTA:
-1. Seja EXTREMAMENTE claro, objetivo e amigável.
-2. Responda APENAS com base nos dados JSON fornecidos. Se não souber, diga "Não encontrei essa informação nos documentos".
-3. NÃO escreva textos gigantes. Use parágrafos curtos.
-4. Você PODE usar formatação com duplo asterisco (**texto**) para destacar valores, nomes e campos importantes. Eu irei renderizar isso no front-end. Não use nenhuma outra formatação markdown.`;
+REGRAS:
+1. O usuário VAI te perguntar sobre rendimentos e valores de anos anteriores. SEJA PROATIVO. Procure no JSON, some os valores se necessário e dê a resposta exata baseada nos arquivos enviados.
+2. Se o usuário perguntar algo que realmente não existe nos dados, diga educadamente.
+3. Responda em parágrafos curtos. Destaque valores com **negrito**. NUNCA use formatação JSON.`;
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',
@@ -28,9 +26,7 @@ REGRAS DE POSTURA E RESPOSTA:
 
     const result = await model.generateContent(message);
     return NextResponse.json({ reply: result.response.text() });
-    
   } catch (error) {
-    console.error('Erro no chat:', error);
-    return NextResponse.json({ error: 'Falha ao conectar com o assistente.' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha no assistente.' }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Ativador nativo do Dark Mode no Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Scrollbar Minimalista */
 ::-webkit-scrollbar {
@@ -41,5 +42,6 @@
 }
 
 body {
-  @apply transition-colors duration-300;
+  transition-property: color, background-color;
+  transition-duration: 300ms;
 }

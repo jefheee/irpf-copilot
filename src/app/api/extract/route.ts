@@ -40,20 +40,20 @@ export async function POST(req: Request) {
 
     const parts: any[] = [];
 
-    // Estratégia de Separação de Contexto Temporal
-    if (baseDocument) {
-      parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
+// Estratégia de Separação de Contexto Temporal
+if (baseDocument) {
+    parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
+    
+    // Se o utilizador enviar o db.json
+    if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
+      const jsonText = await baseDocument.text();
+      parts.push(`Dados estruturados do ano anterior:\n${jsonText}`);
+    } else {
+      // Se o utilizador enviar o PDF original
       const arrayBuffer = await baseDocument.arrayBuffer();
       parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
     }
-
-    if (receipts.length > 0) {
-      parts.push("=== INFORMES E RECIBOS DO ANO ATUAL (NOVIDADES) ===");
-      for (const file of receipts) {
-        const arrayBuffer = await file.arrayBuffer();
-        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
-      }
-    }
+  }
 
     parts.push("Com base na documentação acima, extraia os dados, formate os valores financeiros em Reais (R$) e crie as tarefas usando os menus exatos da barra lateral do IRPF.");
 

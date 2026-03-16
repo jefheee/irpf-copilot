@@ -2,12 +2,28 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-type Message = { role: 'user' | 'assistant'; content: string };
-type Task = { titulo: string; caminho: string; detalhes: string };
+type Message = { role: 'user' | 'assistant'; content: string; isNew?: boolean };type Task = { titulo: string; caminho: string; detalhes: string };
 type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
 
 // CORREÇÃO: Renderizador Markdown Completo (Lida com ###, listas e negrito)
 const FormattedText = ({ text }: { text: string }) => {
+  // Efeito de Máquina de Escrever para a IA
+const TypewriterText = ({ text }: { text: string }) => {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    let i = 0;
+    const timer = setInterval(() => {
+      setDisplayedText(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(timer);
+    }, 10); // Velocidade da digitação (10ms por caractere)
+    
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <FormattedText text={displayedText} />;
+};
   return (
     <div className="space-y-4">
       {text.split('\n').map((line, i) => {
@@ -122,7 +138,7 @@ export default function Home() {
         body: JSON.stringify({ message: newMessage.content, contextData: result })
       });
       const data = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, não consegui aceder à base de conhecimento." }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, não consegui aceder à base de conhecimento.", isNew: true }]);
     } catch (error) {
       setChatMessages(prev => [...prev, { role: 'assistant', content: "Falha de conexão. Tente novamente." }]);
     } finally {
@@ -370,20 +386,26 @@ export default function Home() {
                         </h3>
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                        {chatMessages.map((msg, i) => (
-                          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            {/* CORREÇÃO: Contraste do Chat da Pergunta do Usuário. */}
+                      {chatMessages.map((msg, i) => (
+                          <div key={i} className={`flex animate-message ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-tr-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-800 dark:border-zinc-700 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
-                              <FormattedText text={msg.content} />
+                              {/* Se for IA e for nova, digita. Senão, mostra direto. */}
+                              {msg.isNew && msg.role === 'assistant' ? (
+                                <TypewriterText text={msg.content} />
+                              ) : (
+                                <FormattedText text={msg.content} />
+                              )}
                             </div>
                           </div>
                         ))}
+                        
                         {isChatLoading && (
-                          <div className="flex justify-start">
-                            <div className="bg-white border border-neutral-200 dark:bg-zinc-800 dark:border-zinc-700 p-4 rounded-2xl rounded-tl-sm text-sm text-neutral-500 animate-pulse flex items-center gap-2">
-                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce"></span>
-                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
+                          <div className="flex justify-start animate-message">
+                            {/* Novo visual de carregamento "Thinking" estilo Gemini */}
+                            <div className="border border-neutral-200 dark:border-zinc-700 p-4 rounded-2xl rounded-tl-sm w-16 h-12 flex items-center justify-center gap-1.5 animate-shimmer shadow-sm">
+                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce"></span>
+                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></span>
+                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></span>
                             </div>
                           </div>
                         )}

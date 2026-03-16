@@ -45,3 +45,29 @@ body {
   transition-property: color, background-color;
   transition-duration: 300ms;
 }
+/* Animação dos Balões de Chat */
+@keyframes messagePop {
+  0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-message {
+  animation: messagePop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Animação estilo Gemini "Pensando..." */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+  background-size: 200% 100%;
+}

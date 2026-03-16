@@ -42,6 +42,9 @@ export default function Home() {
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
+  // Estado para controlar quais documentos pendentes o usuário já fechou
+  const [dismissedDocs, setDismissedDocs] = useState<number[]>([]);
+  
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function Home() {
     setLoading(true);
     setResult(null);
     setSelectedTask(null);
+    setDismissedDocs([]);
     
     const formData = new FormData();
     if (baseFile) formData.append('baseDocument', baseFile);
@@ -80,12 +84,12 @@ export default function Home() {
       
       if (data.plano_acao || data.fichas) {
         setResult(data as ExtractedData);
-        setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus documentos e verifiquei o que está pendente. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }]);
+        setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus arquivos e verifiquei o que está pendente. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer uma pergunta aqui.' }]);
       } else {
-        setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] }); // Fallback
+        setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] });
       }
     } catch (error) {
-      alert("Erro ao processar os documentos.");
+      alert("Erro ao processar os arquivos.");
     } finally {
       setLoading(false);
     }
@@ -126,7 +130,7 @@ export default function Home() {
       }
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 2000);
-    } catch (err) { alert("Navegador bloqueou a cópia."); }
+    } catch (err) { alert("O navegador bloqueou a cópia."); }
   };
 
   const formatLabel = (key: string) => {
@@ -143,8 +147,15 @@ export default function Home() {
   };
 
   const handleClear = () => {
-    setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null);
+    setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null); setDismissedDocs([]);
   };
+
+  const dismissDoc = (index: number) => {
+    setDismissedDocs(prev => [...prev, index]);
+  };
+
+  // Verifica se ainda há documentos pendentes para mostrar
+  const visiblePendingDocs = result?.documentos_pendentes?.filter((_, i) => !dismissedDocs.includes(i)) || [];
 
   return (
     <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col items-center py-10 px-4 sm:px-6 transition-colors duration-300">
@@ -177,7 +188,7 @@ export default function Home() {
               <div>
                 <h3 className="font-medium text-sm">Privacidade & Retenção Zero</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                  Processamento feito em memória RAM. Os ficheiros são destruídos imediatamente após a extração.
+                  Processamento feito em memória RAM. Os arquivos são destruídos imediatamente após a extração.
                 </p>
               </div>
             </div>
@@ -204,7 +215,7 @@ export default function Home() {
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
                   <span className="font-medium text-lg text-neutral-800 dark:text-neutral-200">
-                    {receiptFiles.length > 0 ? `✓ ${receiptFiles.length} Ficheiro(s) Anexado(s)` : 'Recibos do Ano Atual'}
+                    {receiptFiles.length > 0 ? `✓ ${receiptFiles.length} Arquivo(s) Anexado(s)` : 'Recibos do Ano Atual'}
                   </span>
                   <span className="text-sm text-neutral-400 px-4">Informes de rendimento, consórcios, notas fiscais, faturas.</span>
                 </label>
@@ -219,36 +230,47 @@ export default function Home() {
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  A auditar e cruzar dados...
+                  Auditando documentos...
                 </>
               ) : 'Gerar Plano de Ação'}
             </button>
           </div>
         )}
 
-        {result && (!result.plano_acao && !result.fichas) && (
+        {result && (!result.plano_acao && (!result.fichas || result.fichas.length === 0)) && (
           <div className="animate-fade-in bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-6 rounded-xl text-center">
-            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal válido encontrado.</h3>
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal válido encontrado nos arquivos.</h3>
             <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 dark:text-red-400 underline">Tentar novamente</button>
           </div>
         )}
 
-        {result && (result.plano_acao || result.fichas) && (
+        {result && (result.plano_acao || (result.fichas && result.fichas.length > 0)) && (
           <div className="animate-slide-up space-y-6 w-full">
             
-            {/* Alerta de Documentos Pendentes */}
-            {result.documentos_pendentes && result.documentos_pendentes.length > 0 && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-5 rounded-xl flex items-start gap-4">
-                <div className="p-2 bg-amber-100 dark:bg-amber-800/50 text-amber-700 dark:text-amber-400 rounded-lg shrink-0">
+            {/* Alerta de Documentos Pendentes Suavizado e Fechável */}
+            {visiblePendingDocs.length > 0 && (
+              <div className="bg-amber-50/70 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/30 p-5 rounded-xl flex items-start gap-4">
+                <div className="p-2 bg-amber-100/50 dark:bg-amber-800/30 text-amber-600 dark:text-amber-500 rounded-lg shrink-0">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-amber-800 dark:text-amber-400">Documentos Pendentes Identificados</h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-500 mt-1 mb-2">Com base na sua declaração do ano passado, notámos que ainda não anexou os seguintes informes referentes a este ano:</p>
-                  <ul className="list-disc pl-5 text-sm text-amber-800 dark:text-amber-300 space-y-1 font-medium">
-                    {result.documentos_pendentes.map((doc, idx) => (
-                      <li key={idx}>{doc}</li>
-                    ))}
+                  <h3 className="font-medium text-amber-800 dark:text-amber-400">Documentos Pendentes</h3>
+                  <p className="text-sm text-amber-700/80 dark:text-amber-500/80 mt-1 mb-3">Com base no ano passado, notamos que faltam estes comprovantes:</p>
+                  <ul className="space-y-2">
+                    {result.documentos_pendentes.map((doc, idx) => {
+                      if (dismissedDocs.includes(idx)) return null;
+                      return (
+                        <li key={idx} className="flex justify-between items-start gap-3 bg-white/60 dark:bg-neutral-900/40 p-3 rounded-lg border border-amber-100 dark:border-amber-800/20">
+                          <span className="text-sm text-amber-900 dark:text-amber-300">{doc}</span>
+                          <button 
+                            onClick={() => dismissDoc(idx)}
+                            className="text-xs font-medium text-amber-600 hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-300 bg-amber-100/50 dark:bg-amber-800/30 px-2 py-1 rounded transition-colors shrink-0"
+                          >
+                            Já sei, relaxa
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </div>
@@ -266,7 +288,7 @@ export default function Home() {
                   onClick={() => setActiveTab('raw')}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'raw' ? 'bg-white dark:bg-neutral-800 shadow-sm text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
                 >
-                  Dados Abstraídos
+                  Dados Extraídos
                 </button>
               </div>
               <button onClick={handleClear} className="text-sm font-medium text-neutral-500 hover:text-red-500 transition underline underline-offset-4">
@@ -287,7 +309,8 @@ export default function Home() {
                       <div 
                         key={idx} 
                         onClick={() => setSelectedTask(task)}
-                        className={`cursor-pointer transition-all duration-200 p-4 rounded-xl border ${selectedTask === task ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 shadow-md transform scale-[1.02]' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-blue-200 dark:hover:border-blue-800 shadow-sm'}`}
+                        // Aqui foi corrigido o erro de corte lateral: trocado scale por translate-x-1 e adicionada borda indicativa
+                        className={`cursor-pointer transition-all duration-200 p-4 rounded-xl border ${selectedTask === task ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 border-y-blue-200 border-r-blue-200 dark:border-y-blue-800 dark:border-r-blue-800 shadow-md translate-x-1' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm'}`}
                       >
                         <div className="flex items-start gap-3">
                           <div className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${selectedTask === task ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'}`}>

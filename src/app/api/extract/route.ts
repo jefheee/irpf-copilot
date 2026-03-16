@@ -11,13 +11,13 @@ VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
 
 {
   "documentos_pendentes": [
-    "Lista de strings informando QUAIS documentos do PASSADO faltam ser enviados no PRESENTE. Ex: 'Informe de Rendimentos do Banco Itaú (Conta X)', 'Extrato da Binance para os Bitcoins'."
+    "Lista de strings informando QUAIS documentos do PASSADO faltam ser enviados no PRESENTE. Ex: 'Informe de Rendimentos do Itaú', 'Extrato da Binance'."
   ],
   "plano_acao": [
     {
-      "titulo": "Ação específica e isolada (ex: Adicionar Chevrolet Onix)",
+      "titulo": "Ação específica (ex: Adicionar Chevrolet Onix)",
       "caminho": "MENU EXATO NO PGD: Identificação do Contribuinte, Dependentes, Rendimentos Tributáveis Recebidos de Pessoa Jurídica, Rendimentos Isentos e Não Tributáveis, Rendimentos Sujeitos à Tributação Exclusiva/Definitiva, Pagamentos Efetuados, Bens e Direitos, Dívidas e Ônus Reais.",
-      "detalhes": "Passo a passo exato do que preencher. NUNCA junte ações de Fichas diferentes na mesma tarefa. Se houve troca de carro, crie UMA tarefa para dar baixa no antigo e OUTRA para adicionar o novo."
+      "detalhes": "Passo a passo exato do que preencher."
     }
   ],
   "fichas": [
@@ -29,9 +29,9 @@ VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
 }
 
 REGRAS DE AUDITORIA (CRÍTICO):
-1. CARROS/TROCA: Se nas imagens houver compra de carro com veículo dado na troca, você OBRIGATORIAMENTE tem que gerar uma tarefa de BAIXA do veículo antigo (situacao_ano_atual = R$ 0,00) e uma de INCLUSÃO do novo.
-2. VALORES: Formate todos os valores financeiros para string no padrão "R$ 1.500,00".
-3. FOCO: Não resuma tarefas. Seja granular. Um item bancário = Uma tarefa.`;
+1. PREGUIÇA ZERO NAS FICHAS: A chave "fichas" DEVE conter TODOS os dados finais do usuário. Junte o que ele já tinha no passado com o que ele enviou de novo. NÃO DEIXE VAZIO. Liste todos os bens, pagamentos e rendimentos.
+2. CARROS/TROCA: Se houver compra de carro com veículo dado na troca, gere uma tarefa de BAIXA do veículo antigo (situação ano atual = R$ 0,00) e uma de INCLUSÃO do novo.
+3. VALORES: Formate todos os valores financeiros para string no padrão "R$ 1.500,00".`;
 
 export async function POST(req: Request) {
   try {
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       }
     }
 
-    parts.push("Cruze os dados. Identifique o que falta (documentos_pendentes), o que mudou (plano_acao isolando cada operação como a troca do carro) e os dados brutos (fichas). Retorne APENAS o JSON.");
+    parts.push("Cruze os dados. Identifique o que falta (documentos_pendentes), o que mudou (plano_acao) e CONSOLIDE TODOS OS DADOS na chave (fichas). Retorne APENAS o JSON.");
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 

@@ -7,23 +7,6 @@ type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; ficha
 
 // CORREÇÃO: Renderizador Markdown Completo (Lida com ###, listas e negrito)
 const FormattedText = ({ text }: { text: string }) => {
-  // Efeito de Máquina de Escrever para a IA
-const TypewriterText = ({ text }: { text: string }) => {
-  const [displayedText, setDisplayedText] = useState('');
-
-  useEffect(() => {
-    let i = 0;
-    const timer = setInterval(() => {
-      setDisplayedText(text.slice(0, i + 1));
-      i++;
-      if (i >= text.length) clearInterval(timer);
-    }, 10); // Velocidade da digitação (10ms por caractere)
-    
-    return () => clearInterval(timer);
-  }, [text]);
-
-  return <FormattedText text={displayedText} />;
-};
   return (
     <div className="space-y-4">
       {text.split('\n').map((line, i) => {
@@ -58,6 +41,24 @@ const TypewriterText = ({ text }: { text: string }) => {
       })}
     </div>
   );
+};
+
+// Efeito de Máquina de Escrever para a IA (AGORA NO ESCOPO GLOBAL CORRETO)
+const TypewriterText = ({ text }: { text: string }) => {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    let i = 0;
+    const timer = setInterval(() => {
+      setDisplayedText(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(timer);
+    }, 10); // Velocidade da digitação (10ms por caractere)
+    
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return <FormattedText text={displayedText} />;
 };
 
 export default function Home() {

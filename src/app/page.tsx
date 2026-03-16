@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 type Task = { titulo: string; caminho: string; detalhes: string };
+type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
 
 const FormattedText = ({ text }: { text: string }) => {
   return (
@@ -26,21 +27,18 @@ const FormattedText = ({ text }: { text: string }) => {
 };
 
 export default function Home() {
-  // Estados de Upload Separados
   const [baseFile, setBaseFile] = useState<File | null>(null);
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any[] | null>(null);
+  const [result, setResult] = useState<ExtractedData | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'assistant' | 'raw'>('assistant');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
-  const [chatMessages, setChatMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }
-  ]);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
@@ -71,7 +69,6 @@ export default function Home() {
     setLoading(true);
     setResult(null);
     setSelectedTask(null);
-    setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }]);
     
     const formData = new FormData();
     if (baseFile) formData.append('baseDocument', baseFile);
@@ -80,7 +77,13 @@ export default function Home() {
     try {
       const response = await fetch('/api/extract', { method: 'POST', body: formData });
       const data = await response.json();
-      setResult(Array.isArray(data) ? data : []);
+      
+      if (data.plano_acao || data.fichas) {
+        setResult(data as ExtractedData);
+        setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus documentos e verifiquei o que está pendente. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }]);
+      } else {
+        setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] }); // Fallback
+      }
     } catch (error) {
       alert("Erro ao processar os documentos.");
     } finally {
@@ -143,12 +146,9 @@ export default function Home() {
     setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null);
   };
 
-  const planoAcaoNode = result?.find(r => r.ficha === "Plano de Ação");
-  const tarefas: Task[] = planoAcaoNode?.dados?.tarefas || [];
-
   return (
     <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col items-center py-10 px-4 sm:px-6 transition-colors duration-300">
-      <div className="max-w-5xl w-full space-y-8">
+      <div className="max-w-6xl w-full space-y-8">
         
         <header className="flex justify-between items-center animate-slide-up">
           <div>
@@ -183,7 +183,6 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Zona 1: Documento Base */}
               <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-neutral-400'}`}>
                 <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf,application/json" />
                 <label htmlFor="base-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
@@ -191,14 +190,13 @@ export default function Home() {
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   </div>
                   <span className="font-medium text-lg text-neutral-800 dark:text-neutral-200">
-                    {baseFile ? '✓ Declaração Base Anexada' : 'Declaração Anterior (Opcional)'}
+                    {baseFile ? '✓ Declaração Base Anexada' : 'Declaração Anterior (PDF ou JSON)'}
                   </span>
-                  <span className="text-sm text-neutral-400 px-4">Anexe o PDF da declaração do IRPF do ano passado para servir de comparativo.</span>
+                  <span className="text-sm text-neutral-400 px-4">Anexe os dados do IRPF do ano passado para servir de auditoria.</span>
                   {baseFile && <span className="text-xs text-blue-600 dark:text-blue-400 font-mono mt-2">{baseFile.name}</span>}
                 </label>
               </div>
 
-              {/* Zona 2: Recibos Novos */}
               <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-neutral-400'}`}>
                 <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
                 <label htmlFor="receipts-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
@@ -221,22 +219,41 @@ export default function Home() {
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  A analisar documentos...
+                  A auditar e cruzar dados...
                 </>
               ) : 'Gerar Plano de Ação'}
             </button>
           </div>
         )}
 
-        {result && result.length === 0 && (
+        {result && (!result.plano_acao && !result.fichas) && (
           <div className="animate-fade-in bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-6 rounded-xl text-center">
-            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal encontrado nos ficheiros submetidos.</h3>
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal válido encontrado.</h3>
             <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 dark:text-red-400 underline">Tentar novamente</button>
           </div>
         )}
 
-        {result && result.length > 0 && (
-          <div className="animate-slide-up space-y-6">
+        {result && (result.plano_acao || result.fichas) && (
+          <div className="animate-slide-up space-y-6 w-full">
+            
+            {/* Alerta de Documentos Pendentes */}
+            {result.documentos_pendentes && result.documentos_pendentes.length > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-5 rounded-xl flex items-start gap-4">
+                <div className="p-2 bg-amber-100 dark:bg-amber-800/50 text-amber-700 dark:text-amber-400 rounded-lg shrink-0">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-800 dark:text-amber-400">Documentos Pendentes Identificados</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-500 mt-1 mb-2">Com base na sua declaração do ano passado, notámos que ainda não anexou os seguintes informes referentes a este ano:</p>
+                  <ul className="list-disc pl-5 text-sm text-amber-800 dark:text-amber-300 space-y-1 font-medium">
+                    {result.documentos_pendentes.map((doc, idx) => (
+                      <li key={idx}>{doc}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-between items-center pb-2 border-b border-neutral-200 dark:border-neutral-800 gap-4">
               <div className="flex space-x-1 bg-neutral-100 dark:bg-neutral-900 p-1 rounded-lg">
                 <button 
@@ -258,16 +275,15 @@ export default function Home() {
             </div>
 
             {activeTab === 'assistant' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
                 
-                {/* Coluna Esquerda: Menu do Plano de Ação */}
                 <div className="lg:col-span-5 space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   <h3 className="text-lg font-semibold border-b border-neutral-200 dark:border-neutral-800 pb-2 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                    Passo a Passo (Ações)
+                    Plano de Ação
                   </h3>
-                  {tarefas.length > 0 ? (
-                    tarefas.map((task, idx) => (
+                  {result.plano_acao && result.plano_acao.length > 0 ? (
+                    result.plano_acao.map((task, idx) => (
                       <div 
                         key={idx} 
                         onClick={() => setSelectedTask(task)}
@@ -286,9 +302,7 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Coluna Direita: Detalhe da Tarefa OU Chat */}
                 <div className="lg:col-span-7 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded-xl shadow-sm flex flex-col h-[600px] overflow-hidden">
-                  
                   {selectedTask ? (
                     <div className="flex flex-col h-full animate-slide-up">
                       <div className="bg-neutral-50 dark:bg-neutral-800/80 p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
@@ -357,7 +371,7 @@ export default function Home() {
                           value={chatInput}
                           onChange={(e) => setChatInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                          placeholder="Ex: Qual foi a minha renda total no ano passado?"
+                          placeholder="Ex: Como eu declaro o carro novo?"
                           className="flex-1 bg-neutral-100 dark:bg-neutral-800 border-none text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
                         />
                         <button 
@@ -375,8 +389,8 @@ export default function Home() {
             )}
 
             {activeTab === 'raw' && (
-              <div className="space-y-6 animate-slide-up">
-                {result.filter(r => r.ficha !== "Plano de Ação").map((item, index) => (
+              <div className="space-y-6 animate-slide-up w-full">
+                {result.fichas && result.fichas.map((item, index) => (
                   <div key={index} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
                     <div className="bg-neutral-50 dark:bg-neutral-800/50 px-5 py-3 border-b border-neutral-200 dark:border-neutral-800">
                       <h3 className="font-semibold text-neutral-800 dark:text-neutral-200">{item.ficha || "Ficha"}</h3>

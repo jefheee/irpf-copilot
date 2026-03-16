@@ -4,31 +4,34 @@ import { NextResponse } from 'next/server';
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
-const systemPrompt = `Você é um Analista Fiscal Especialista em IRPF.
-O seu propósito é cruzar a declaração base (ano anterior) com os novos recibos (ano atual) e criar um JSON ESTRITO.
+const systemPrompt = `Você é um Auditor Fiscal Sênior especialista em IRPF 2025/2026.
+O seu trabalho é cruzar a Declaração do Ano Anterior (PASSADO) com os Recibos do Ano Atual (PRESENTE).
 
-ESTRUTURA DE SAÍDA EXIGIDA:
-[
-  {
-    "ficha": "Nome Exato da Ficha",
-    "dados": { "chave_amigavel": "Valor a ser copiado" }
-  }
-]
+VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
 
-PLANO DE AÇÃO (GUIA PASSO A PASSO OBRIGATÓRIO SE HOUVER MUDANÇAS):
-Crie como PRIMEIRO objeto a ficha "Plano de Ação".
-"dados": {
-  "tarefas": [
+{
+  "documentos_pendentes": [
+    "Lista de strings informando QUAIS documentos do PASSADO faltam ser enviados no PRESENTE. Ex: 'Informe de Rendimentos do Banco Itaú (Conta X)', 'Extrato da Binance para os Bitcoins'."
+  ],
+  "plano_acao": [
     {
-      "titulo": "Resumo (ex: Adicionar Veículo ONIX)",
-      "caminho": "USE UM DESTES NOMES EXATOS: Identificação do Contribuinte, Dependentes, Rendimentos Tributáveis Recebidos de Pessoa Jurídica, Rendimentos Isentos e Não Tributáveis, Rendimentos Sujeitos à Tributação Exclusiva/Definitiva, Pagamentos Efetuados, Bens e Direitos, Dívidas e Ônus Reais > Botão 'Novo'",
-      "detalhes": "Escreva um guia natural, em português, dizendo EXATAMENTE o que preencher e em qual campo. NUNCA use formato JSON aqui."
+      "titulo": "Ação específica e isolada (ex: Adicionar Chevrolet Onix)",
+      "caminho": "MENU EXATO NO PGD: Identificação do Contribuinte, Dependentes, Rendimentos Tributáveis Recebidos de Pessoa Jurídica, Rendimentos Isentos e Não Tributáveis, Rendimentos Sujeitos à Tributação Exclusiva/Definitiva, Pagamentos Efetuados, Bens e Direitos, Dívidas e Ônus Reais.",
+      "detalhes": "Passo a passo exato do que preencher. NUNCA junte ações de Fichas diferentes na mesma tarefa. Se houve troca de carro, crie UMA tarefa para dar baixa no antigo e OUTRA para adicionar o novo."
+    }
+  ],
+  "fichas": [
+    {
+      "ficha": "Nome Exato da Ficha",
+      "dados": { "Campo": "Valor formatado em R$" }
     }
   ]
 }
 
-REGRA DE FORMATAÇÃO MONETÁRIA (CRÍTICA):
-TODO E QUALQUER valor financeiro (situação_ano_atual, rendimentos, impostos, parcelas) DEVE ser formatado nativamente como STRING no formato moeda brasileira. Exemplo: "R$ 84.940,00" ou "R$ 1.500,50". NUNCA retorne números inteiros flutuantes puros (ex: 84940).`;
+REGRAS DE AUDITORIA (CRÍTICO):
+1. CARROS/TROCA: Se nas imagens houver compra de carro com veículo dado na troca, você OBRIGATORIAMENTE tem que gerar uma tarefa de BAIXA do veículo antigo (situacao_ano_atual = R$ 0,00) e uma de INCLUSÃO do novo.
+2. VALORES: Formate todos os valores financeiros para string no padrão "R$ 1.500,00".
+3. FOCO: Não resuma tarefas. Seja granular. Um item bancário = Uma tarefa.`;
 
 export async function POST(req: Request) {
   try {
@@ -40,22 +43,26 @@ export async function POST(req: Request) {
 
     const parts: any[] = [];
 
-// Estratégia de Separação de Contexto Temporal
-if (baseDocument) {
-    parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
-    
-    // Se o utilizador enviar o db.json
-    if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
-      const jsonText = await baseDocument.text();
-      parts.push(`Dados estruturados do ano anterior:\n${jsonText}`);
-    } else {
-      // Se o utilizador enviar o PDF original
-      const arrayBuffer = await baseDocument.arrayBuffer();
-      parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
+    if (baseDocument) {
+      parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
+      if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
+        const jsonText = await baseDocument.text();
+        parts.push(`Dados do ano anterior:\n${jsonText}`);
+      } else {
+        const arrayBuffer = await baseDocument.arrayBuffer();
+        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
+      }
     }
-  }
 
-    parts.push("Com base na documentação acima, extraia os dados, formate os valores financeiros em Reais (R$) e crie as tarefas usando os menus exatos da barra lateral do IRPF.");
+    if (receipts.length > 0) {
+      parts.push("=== RECIBOS E CONTRATOS DO ANO ATUAL (NOVIDADES) ===");
+      for (const file of receipts) {
+        const arrayBuffer = await file.arrayBuffer();
+        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
+      }
+    }
+
+    parts.push("Cruze os dados. Identifique o que falta (documentos_pendentes), o que mudou (plano_acao isolando cada operação como a troca do carro) e os dados brutos (fichas). Retorne APENAS o JSON.");
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 

@@ -36,7 +36,7 @@ export default function AdminIngest() {
         
         const chunks = chunkText(textData, 1500);
 
-        setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio seguro (Auto-Retry ativo)...`);
+        setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio seguro (15 requisições por minuto)...`);
 
         for (let i = 0; i < chunks.length; i++) {
           setStatus((prev) => {
@@ -64,22 +64,22 @@ export default function AdminIngest() {
             } catch (err: any) {
               retries--;
               if (retries === 0) {
-                throw new Error(`Falha no bloco ${i + 1}. Detalhe: ${err.message}`);
+                throw new Error(`\nFALHA CRÍTICA no bloco ${i + 1}: ${err.message}`);
               }
-              setStatus((prev) => `${prev}\n⚠️ Soluço da API detectado. Tentando novamente em 3 segundos...`);
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              setStatus((prev) => `${prev}\n⚠️ Erro detetado: ${err.message}. A pausar 15 segundos para arrefecer a API...`);
+              await new Promise(resolve => setTimeout(resolve, 15000));
             }
           }
 
-          // Pausa de 1.5s para a API do Google respirar profundamente
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // Pausa de 4.2 segundos OBRIGATÓRIA para não irritar o Google (Limite de 15 RPM)
+          await new Promise(resolve => setTimeout(resolve, 4200));
         }
 
         setStatus((prev) => `${prev}\n✅ Sucesso absoluto no arquivo ${file.name}!`);
       }
       setStatus((prev) => `${prev}\n🎉 Todos os arquivos foram vetorizados e salvos no Supabase!`);
     } catch (error: any) {
-      setStatus((prev) => `${prev}\n❌ Erro Fatal: ${error.message}`);
+      setStatus((prev) => `${prev}\n❌ O Processo Parou: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +90,8 @@ export default function AdminIngest() {
       <div className="max-w-3xl mx-auto space-y-6 bg-white p-8 border border-neutral-200 rounded-xl shadow-sm">
         <h1 className="text-2xl font-bold">Painel Admin: Ingestão de Conhecimento</h1>
         <p className="text-neutral-600 text-sm">
-          A IA agora possui sistema de "Auto-Retry" e usará a Chave Mestra do Supabase para ignorar bloqueios.
+          Este processo será <strong>lento</strong> (cerca de 4 segundos por bloco) para respeitar
+          as cotas gratuitas do Google Gemini sem causar bloqueios.
         </p>
 
         <div className="space-y-4">
@@ -107,7 +108,7 @@ export default function AdminIngest() {
             disabled={files.length === 0 || isLoading}
             className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
           >
-            {isLoading ? 'Processando...' : 'Vetorizar e Salvar no Supabase'}
+            {isLoading ? 'Processando (não feche a página)...' : 'Vetorizar e Salvar no Supabase'}
           </button>
         </div>
 

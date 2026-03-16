@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-type Message = { role: 'user' | 'assistant'; content: string; isNew?: boolean };type Task = { titulo: string; caminho: string; detalhes: string };
+type Message = { role: 'user' | 'assistant'; content: string; isNew?: boolean };
+type Task = { titulo: string; caminho: string; detalhes: string };
 type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
 
-// CORREÇÃO: Renderizador Markdown Completo (Lida com ###, listas e negrito)
+// Renderizador Markdown Completo
 const FormattedText = ({ text }: { text: string }) => {
   return (
     <div className="space-y-4">
@@ -13,24 +14,21 @@ const FormattedText = ({ text }: { text: string }) => {
         const trimmedLine = line.trim();
         if (!trimmedLine) return null;
         
-        // Headers (### Titulo)
         if (trimmedLine.startsWith('###')) {
-          return <h4 key={i} className="text-base font-semibold text-neutral-900 dark:text-white mt-4 mb-2">{trimmedLine.replace(/^#+\s*/, '')}</h4>;
+          return <h4 key={i} className="text-base font-bold text-neutral-900 dark:text-white mt-4 mb-2">{trimmedLine.replace(/^#+\s*/, '')}</h4>;
         }
 
-        // Listas não ordenadas (* item)
         if (trimmedLine.startsWith('* ')) {
-          const htmlLine = trimmedLine.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-neutral-900 dark:text-white">$1</strong>');
+          const htmlLine = trimmedLine.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-neutral-900 dark:text-white">$1</strong>');
           return (
             <div key={i} className="flex items-start gap-2 ml-2">
-              <span className="text-neutral-400 mt-1.5 text-xs">•</span>
+              <span className="text-blue-500 mt-1.5 text-xs">✦</span>
               <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300" dangerouslySetInnerHTML={{ __html: htmlLine }} />
             </div>
           );
         }
 
-        // Parágrafos normais e Listas numeradas (já vêm com formato "1. ")
-        const htmlLine = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-neutral-900 dark:text-white">$1</strong>');
+        const htmlLine = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-neutral-900 dark:text-white">$1</strong>');
         return (
           <p 
             key={i} 
@@ -43,7 +41,7 @@ const FormattedText = ({ text }: { text: string }) => {
   );
 };
 
-// Efeito de Máquina de Escrever para a IA (AGORA NO ESCOPO GLOBAL CORRETO)
+// Efeito de Máquina de Escrever para a IA
 const TypewriterText = ({ text }: { text: string }) => {
   const [displayedText, setDisplayedText] = useState('');
 
@@ -53,7 +51,7 @@ const TypewriterText = ({ text }: { text: string }) => {
       setDisplayedText(text.slice(0, i + 1));
       i++;
       if (i >= text.length) clearInterval(timer);
-    }, 10); // Velocidade da digitação (10ms por caractere)
+    }, 8); // Velocidade da digitação
     
     return () => clearInterval(timer);
   }, [text]);
@@ -71,13 +69,14 @@ export default function Home() {
   
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'assistant' | 'raw'>('assistant');
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
+  // Controle de alertas e modais
   const [dismissedDocs, setDismissedDocs] = useState<number[]>([]);
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,7 +86,7 @@ export default function Home() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, selectedTask]);
+  }, [chatMessages, result]);
 
   const handleBaseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setBaseFile(e.target.files[0]);
@@ -101,8 +100,8 @@ export default function Home() {
     if (!baseFile && receiptFiles.length === 0) return;
     setLoading(true);
     setResult(null);
-    setSelectedTask(null);
     setDismissedDocs([]);
+    setShowAlertsModal(false);
     
     const formData = new FormData();
     if (baseFile) formData.append('baseDocument', baseFile);
@@ -114,7 +113,11 @@ export default function Home() {
       
       if (data.plano_acao || data.fichas) {
         setResult(data as ExtractedData);
-        setChatMessages([{ role: 'assistant', content: 'Olá! Já auditei os seus documentos com base nas **novas regras de 2026**. O plano de ação para maximizar a sua restituição está no menu lateral. Pode clicar nas tarefas para ver o passo a passo, ou fazer-me uma pergunta específica.' }]);
+        setChatMessages([{ 
+          role: 'assistant', 
+          content: 'Olá! Já auditei os seus documentos. Extraí todos os dados e criei os **Cards de Ação** aqui em baixo. Clique num card para eu te ensinar como preenchê-lo, ou pergunte o que quiser!', 
+          isNew: true 
+        }]);
       } else {
         setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] });
       }
@@ -139,12 +142,25 @@ export default function Home() {
         body: JSON.stringify({ message: newMessage.content, contextData: result })
       });
       const data = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, não consegui aceder à base de conhecimento.", isNew: true }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, ocorreu um erro.", isNew: true }]);
     } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: "Falha de conexão. Tente novamente." }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "Falha de conexão. Tente novamente.", isNew: true }]);
     } finally {
       setIsChatLoading(false);
     }
+  };
+
+  // Magia do UX: Clicar no Card simula uma conversa no chat
+  const handleCardClick = (task: Task) => {
+    setChatMessages(prev => [
+      ...prev, 
+      { role: 'user', content: `Como devo lançar: ${task.titulo}?` },
+      { 
+        role: 'assistant', 
+        content: `### ${task.titulo}\n**Onde clicar:**\n${task.caminho}\n\n**Como preencher:**\n${task.detalhes}`, 
+        isNew: true 
+      }
+    ]);
   };
 
   const copyToClipboard = async (text: string, key: string) => {
@@ -183,72 +199,101 @@ export default function Home() {
   };
 
   const handleClear = () => {
-    setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null); setDismissedDocs([]);
+    setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setDismissedDocs([]); setShowAlertsModal(false);
   };
 
-  const dismissDoc = (index: number) => setDismissedDocs(prev => [...prev, index]);
   const visiblePendingDocs = result?.documentos_pendentes?.filter((_, i) => !dismissedDocs.includes(i)) || [];
 
   return (
-    <main className="min-h-screen bg-neutral-100 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 flex flex-col items-center py-10 px-4 sm:px-6 transition-colors duration-300">
-      <div className="max-w-6xl w-full space-y-8">
+    <main className="min-h-screen bg-neutral-50 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 flex flex-col font-sans transition-colors duration-300 relative">
+      
+      {/* HEADER FIXO */}
+      <header className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-zinc-800 sticky top-0 z-50">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">IRPF Copilot</h1>
+        </div>
         
-        <header className="flex justify-between items-center animate-slide-up">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">IRPF Copilot</h1>
-            <p className="text-neutral-500 dark:text-zinc-400 text-sm mt-1">O seu assistente fiscal inteligente.</p>
-          </div>
+        <div className="flex items-center gap-3">
+          {/* Botão de Alerta Clean */}
+          {result && visiblePendingDocs.length > 0 && (
+            <div className="relative">
+              <button 
+                onClick={() => setShowAlertsModal(!showAlertsModal)}
+                className="flex items-center gap-2 px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+              >
+                <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <span className="text-xs font-bold bg-amber-500 text-white rounded-full w-5 h-5 flex items-center justify-center absolute -top-1 -right-1 border-2 border-white dark:border-zinc-900">{visiblePendingDocs.length}</span>
+              </button>
+
+              {/* Modal Pop-over do Alerta */}
+              {showAlertsModal && (
+                <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-hidden animate-slide-up z-50">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 p-3 border-b border-amber-100 dark:border-amber-800/30 flex justify-between items-center">
+                    <span className="font-semibold text-amber-800 dark:text-amber-400 text-sm">Documentos Faltantes</span>
+                    <button onClick={() => setShowAlertsModal(false)} className="text-amber-600 hover:text-amber-800"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                    {result.documentos_pendentes.map((doc, idx) => {
+                      if (dismissedDocs.includes(idx)) return null;
+                      return (
+                        <div key={idx} className="flex justify-between items-center p-2 hover:bg-neutral-50 dark:hover:bg-zinc-700/50 rounded-lg group">
+                          <span className="text-xs text-neutral-700 dark:text-neutral-300">{doc}</span>
+                          <button onClick={() => setDismissedDocs(prev => [...prev, idx])} className="opacity-0 group-hover:opacity-100 text-red-500 p-1" title="Dispensar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {result && (
+            <button onClick={handleClear} className="text-xs font-medium text-neutral-500 hover:text-red-500 transition px-2">Limpar</button>
+          )}
+
           <button 
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2.5 rounded-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 text-neutral-600 dark:text-zinc-300 hover:bg-neutral-50 dark:hover:bg-zinc-800 transition-all hover:scale-105 shadow-sm"
+            className="p-2 rounded-full bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300 hover:bg-neutral-200 dark:hover:bg-zinc-700 transition-all"
           >
-            {isDarkMode ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-            )}
+            {isDarkMode ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
           </button>
-        </header>
+        </div>
+      </header>
 
-        {!result && (
-          <div className="animate-slide-up space-y-6" style={{ animationDelay: '0.1s' }}>
-            <div className="border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 rounded-xl shadow-sm flex items-start space-x-4">
-              <div className="p-2 bg-neutral-100 dark:bg-zinc-800 rounded-lg shrink-0">
-                <svg className="w-5 h-5 text-neutral-700 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              </div>
-              <div>
-                <h3 className="font-medium text-sm">Privacidade & Retenção Zero</h3>
-                <p className="text-xs text-neutral-500 dark:text-zinc-400 mt-1">
-                  Processamento feito em memória RAM. Os arquivos são destruídos imediatamente após a extração.
-                </p>
-              </div>
-            </div>
+      {/* ESTADO INICIAL: TELA DE PESQUISA / UPLOAD ESTILO CANVA */}
+      {!result && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up w-full max-w-4xl mx-auto mt-10">
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-center text-neutral-900 dark:text-white mb-4 tracking-tight">
+            Como posso otimizar a sua <span className="text-blue-600 dark:text-blue-400">declaração</span> hoje?
+          </h2>
+          <p className="text-neutral-500 dark:text-zinc-400 text-center mb-10 max-w-xl">
+            Faça o upload do seu IRPF anterior e dos novos recibos. A nossa IA cruza os dados com as regras de 2026 e diz-lhe exatamente o que fazer.
+          </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${baseFile ? 'border-neutral-900 dark:border-zinc-100 bg-neutral-50 dark:bg-zinc-800/50' : 'border-neutral-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-neutral-400'}`}>
+          <div className="w-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-3xl shadow-xl p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Caixa Base */}
+              <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf,application/json" />
-                <label htmlFor="base-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
-                  <div className={`p-4 rounded-full mb-2 ${baseFile ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300'}`}>
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <label htmlFor="base-upload" className="cursor-pointer w-full flex flex-col items-center">
+                  <div className={`p-3 rounded-full mb-3 ${baseFile ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-neutral-200 dark:bg-zinc-700 text-neutral-600 dark:text-zinc-300'}`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   </div>
-                  <span className="font-medium text-lg text-neutral-800 dark:text-zinc-200">
-                    {baseFile ? '✓ Declaração Base Anexada' : 'Declaração Anterior (PDF ou JSON)'}
-                  </span>
-                  <span className="text-sm text-neutral-400 px-4">Anexe os dados do IRPF do ano passado.</span>
-                  {baseFile && <span className="text-xs text-neutral-600 dark:text-zinc-400 font-mono mt-2">{baseFile.name}</span>}
+                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{baseFile ? 'Declaração Anexada' : 'Declaração de 2025 (PDF)'}</span>
+                  {baseFile && <span className="text-xs text-blue-600 mt-1 line-clamp-1 max-w-[200px]">{baseFile.name}</span>}
                 </label>
               </div>
 
-              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-neutral-900 dark:border-zinc-100 bg-neutral-50 dark:bg-zinc-800/50' : 'border-neutral-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-neutral-400'}`}>
+              {/* Caixa Recibos */}
+              <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
-                <label htmlFor="receipts-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
-                  <div className={`p-4 rounded-full mb-2 ${receiptFiles.length > 0 ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300'}`}>
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <label htmlFor="receipts-upload" className="cursor-pointer w-full flex flex-col items-center">
+                  <div className={`p-3 rounded-full mb-3 ${receiptFiles.length > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-neutral-200 dark:bg-zinc-700 text-neutral-600 dark:text-zinc-300'}`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
-                  <span className="font-medium text-lg text-neutral-800 dark:text-zinc-200">
-                    {receiptFiles.length > 0 ? `✓ ${receiptFiles.length} Arquivo(s) Anexado(s)` : 'Recibos do Ano Atual'}
-                  </span>
-                  <span className="text-sm text-neutral-400 px-4">Informes de rendimento, notas, faturas.</span>
+                  <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">{receiptFiles.length > 0 ? `${receiptFiles.length} Ficheiro(s) Anexado(s)` : 'Recibos do Ano Novo'}</span>
+                  {receiptFiles.length === 0 && <span className="text-xs text-neutral-400 mt-1">Imagens ou PDFs</span>}
                 </label>
               </div>
             </div>
@@ -256,216 +301,132 @@ export default function Home() {
             <button 
               onClick={handleUpload}
               disabled={(!baseFile && receiptFiles.length === 0) || loading}
-              className="w-full bg-neutral-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-4 rounded-xl font-medium hover:bg-neutral-800 dark:hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm flex justify-center items-center gap-2"
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Auditar e Cruzar Dados...
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  A analisar documentos...
                 </>
-              ) : 'Gerar Plano de Ação'}
+              ) : 'Analisar e Criar Plano de Ação'}
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {result && (!result.plano_acao && (!result.fichas || result.fichas.length === 0)) && (
-          <div className="animate-fade-in bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 p-6 rounded-xl text-center">
-            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal válido encontrado nos arquivos.</h3>
-            <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 dark:text-red-400 underline">Tentar novamente</button>
+      {/* ESTADO PROCESSADO: CHAT CENTRALIZADO COM CARDS E BARRA GIGANTE */}
+      {result && (
+        <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col h-[calc(100vh-80px)] pb-6 relative animate-fade-in">
+          
+          {/* Abas Superiores (Opcional, para alternar entre Chat e Dados Brutos) */}
+          <div className="flex justify-center my-4">
+            <div className="flex bg-neutral-200/50 dark:bg-zinc-800/50 p-1 rounded-xl">
+              <button onClick={() => setActiveTab('assistant')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'assistant' ? 'bg-white dark:bg-zinc-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Assistente</button>
+              <button onClick={() => setActiveTab('raw')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'raw' ? 'bg-white dark:bg-zinc-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Dados Extraídos</button>
+            </div>
           </div>
-        )}
 
-        {result && (result.plano_acao || (result.fichas && result.fichas.length > 0)) && (
-          <div className="animate-slide-up space-y-6 w-full">
-            
-            {/* CORREÇÃO: Alerta Pendente com Contraste Equilibrado e Elegante */}
-            {visiblePendingDocs.length > 0 && (
-              <div className="bg-yellow-50/80 dark:bg-yellow-500/5 border border-yellow-200/50 dark:border-yellow-500/20 p-4 rounded-xl flex items-start gap-4">
-                <div className="mt-0.5 text-yellow-600 dark:text-yellow-500 shrink-0">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          {activeTab === 'assistant' ? (
+            <>
+              {/* Área de Mensagens do Chat */}
+              <div className="flex-1 overflow-y-auto px-4 space-y-6 custom-scrollbar pb-32">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex animate-message ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {/* Contrastes Perfeitos para o Chat */}
+                    <div className={`max-w-[85%] p-5 rounded-3xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 text-neutral-800 dark:text-neutral-200 rounded-bl-sm'}`}>
+                      {msg.isNew && msg.role === 'assistant' ? <TypewriterText text={msg.content} /> : <FormattedText text={msg.content} />}
+                    </div>
+                  </div>
+                ))}
+                
+                {isChatLoading && (
+                  <div className="flex justify-start animate-message">
+                    <div className="bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 p-4 rounded-3xl rounded-bl-sm w-20 h-12 flex items-center justify-center gap-1.5 shadow-sm">
+                      <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce"></span>
+                      <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></span>
+                      <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} className="h-4" />
+              </div>
+
+              {/* BARRA INFERIOR: Cards de Ação + Input Estilo Canva */}
+              <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 bg-gradient-to-t from-neutral-50 via-neutral-50 to-transparent dark:from-zinc-950 dark:via-zinc-950">
+                
+                {/* Carrossel de Cards de Ação Horizontal */}
+                {result.plano_acao && result.plano_acao.length > 0 && (
+                  <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide snap-x">
+                    {result.plano_acao.map((task, idx) => (
+                      <button 
+                        key={idx} 
+                        onClick={() => handleCardClick(task)}
+                        className="flex-none w-64 text-left bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 p-4 rounded-2xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all snap-center group"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">{idx + 1}</div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 dark:text-zinc-500 group-hover:text-blue-500 transition-colors">Ação Pendente</span>
+                        </div>
+                        <h4 className="font-semibold text-neutral-800 dark:text-white text-sm line-clamp-2">{task.titulo}</h4>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input Gigante Estilo Canva */}
+                <div className="bg-white dark:bg-zinc-900 border border-neutral-300 dark:border-zinc-700 rounded-full shadow-lg p-2 flex items-center gap-2 relative focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+                  <div className="pl-4 text-neutral-400">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                  </div>
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Pergunte à IA ou clique num card acima..."
+                    className="flex-1 bg-transparent border-none text-base px-2 py-3 outline-none text-neutral-800 dark:text-white placeholder-neutral-400"
+                  />
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={!chatInput.trim() || isChatLoading}
+                    className="bg-blue-600 text-white p-3 rounded-full disabled:opacity-50 hover:bg-blue-700 transition-transform hover:scale-105 shadow-sm mr-1"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-sm text-yellow-800 dark:text-yellow-400">Atenção: Possíveis documentos em falta</h3>
-                  <div className="mt-3 space-y-2">
-                    {result.documentos_pendentes.map((doc, idx) => {
-                      if (dismissedDocs.includes(idx)) return null;
+              </div>
+            </>
+          ) : (
+            /* ABA DOS DADOS EXTRAÍDOS (Mantida a mesma lógica, ajustado o padding inferior) */
+            <div className="space-y-6 w-full overflow-y-auto pb-10 px-2 custom-scrollbar">
+              {result.fichas && result.fichas.map((item, index) => (
+                <div key={index} className="bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="bg-neutral-50 dark:bg-zinc-800/50 px-5 py-4 border-b border-neutral-200 dark:border-zinc-800">
+                    <h3 className="font-bold text-neutral-800 dark:text-zinc-200">{item.ficha ? formatLabel(item.ficha) : "Ficha"}</h3>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {item.dados && Object.entries(item.dados).map(([key, value]) => {
+                      const stringValue = String(value);
+                      const isLong = stringValue.length > 50;
                       return (
-                        <div key={idx} className="flex justify-between items-center gap-3 bg-white/60 dark:bg-zinc-900/50 px-3 py-2 rounded-lg border border-yellow-100/50 dark:border-yellow-900/30">
-                          <span className="text-xs text-yellow-900 dark:text-yellow-200/80 font-medium">{doc}</span>
-                          <button 
-                            onClick={() => dismissDoc(idx)}
-                            className="p-1.5 text-yellow-500 hover:text-yellow-700 dark:text-yellow-600 dark:hover:text-yellow-400 rounded-md transition-colors shrink-0"
-                            title="Dispensar aviso"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
+                        <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-center'} pb-3 border-b border-neutral-100 dark:border-zinc-800/50 last:border-0 last:pb-0`}>
+                          <span className="text-sm text-neutral-500 dark:text-zinc-400 font-semibold">{formatLabel(key)}</span>
+                          <div className={`flex items-start ${isLong ? 'w-full' : 'sm:max-w-[60%]'} space-x-3`}>
+                            <div className={`text-sm bg-neutral-50 dark:bg-zinc-800/50 px-3 py-2 rounded-lg font-mono ${isLong ? 'w-full text-justify' : ''} break-words text-neutral-800 dark:text-zinc-300 border border-neutral-100 dark:border-zinc-700/50`}>{stringValue}</div>
+                            <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-blue-500 p-2 bg-neutral-50 dark:bg-zinc-800 rounded-lg shrink-0 transition border border-neutral-100 dark:border-zinc-700/50" title="Copiar">
+                              {copiedKey === `${index}-${key}` ? <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row justify-between items-center pb-2 border-b border-neutral-200 dark:border-zinc-800 gap-4">
-              <div className="flex space-x-1 bg-neutral-200/50 dark:bg-zinc-900 p-1 rounded-lg border border-neutral-200 dark:border-zinc-800">
-                <button 
-                  onClick={() => setActiveTab('assistant')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'assistant' ? 'bg-white dark:bg-zinc-800 shadow-sm text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
-                >
-                  Plano de Ação
-                </button>
-                <button 
-                  onClick={() => setActiveTab('raw')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'raw' ? 'bg-white dark:bg-zinc-800 shadow-sm text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
-                >
-                  Dados Extraídos
-                </button>
-              </div>
-              <button onClick={handleClear} className="text-sm font-medium text-neutral-500 hover:text-red-500 transition underline underline-offset-4">
-                Encerrar Sessão
-              </button>
+              ))}
             </div>
-
-            {activeTab === 'assistant' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-                <div className="lg:col-span-5 space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                  {result.plano_acao && result.plano_acao.length > 0 ? (
-                    result.plano_acao.map((task, idx) => (
-                      <div 
-                        key={idx} 
-                        onClick={() => setSelectedTask(task)}
-                        className={`cursor-pointer transition-all duration-200 p-4 rounded-xl border ${selectedTask === task ? 'bg-neutral-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md translate-x-1' : 'bg-white dark:bg-zinc-900 border-neutral-200 dark:border-zinc-800 hover:border-neutral-300 dark:hover:border-zinc-700 shadow-sm'}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${selectedTask === task ? 'bg-white/20 dark:bg-zinc-900/10 text-white dark:text-zinc-900' : 'bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-400'}`}>
-                            {idx + 1}
-                          </div>
-                          <p className="font-medium text-sm leading-snug">{task.titulo}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-neutral-500 text-sm italic">Nenhuma ação estruturada encontrada.</p>
-                  )}
-                </div>
-
-                <div className="lg:col-span-7 border border-neutral-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl shadow-sm flex flex-col h-[600px] overflow-hidden">
-                  {selectedTask ? (
-                    <div className="flex flex-col h-full animate-slide-up">
-                      <div className="bg-neutral-50 dark:bg-zinc-900 p-4 border-b border-neutral-200 dark:border-zinc-800 flex items-center justify-between">
-                        <h3 className="font-medium text-sm text-neutral-500 dark:text-zinc-400">Guia de Preenchimento</h3>
-                        <button onClick={() => setSelectedTask(null)} className="text-xs font-medium bg-neutral-200 dark:bg-zinc-800 hover:bg-neutral-300 dark:hover:bg-zinc-700 px-3 py-1.5 rounded-md transition flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> Voltar ao Chat
-                        </button>
-                      </div>
-                      <div className="p-6 overflow-y-auto space-y-8 custom-scrollbar">
-                        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white">{selectedTask.titulo}</h2>
-                        <div className="space-y-3">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> Onde clicar no PGD
-                          </label>
-                          <div className="bg-neutral-100 dark:bg-zinc-800 p-4 rounded-lg border border-neutral-200 dark:border-zinc-700">
-                            <p className="font-mono text-sm text-neutral-800 dark:text-zinc-200 font-medium tracking-tight">{selectedTask.caminho}</p>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg> Como Preencher
-                          </label>
-                          <div className="bg-neutral-50 dark:bg-zinc-950 p-5 rounded-lg border border-neutral-100 dark:border-zinc-800">
-                            <FormattedText text={selectedTask.detalhes} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-neutral-50 dark:bg-zinc-900 p-4 border-b border-neutral-200 dark:border-zinc-800">
-                        <h3 className="font-medium flex items-center gap-2">
-                          <svg className="w-5 h-5 text-neutral-700 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg> Consultor Tributário 2026
-                        </h3>
-                      </div>
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                      {chatMessages.map((msg, i) => (
-                          <div key={i} className={`flex animate-message ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-tr-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-800 dark:border-zinc-700 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
-                              {/* Se for IA e for nova, digita. Senão, mostra direto. */}
-                              {msg.isNew && msg.role === 'assistant' ? (
-                                <TypewriterText text={msg.content} />
-                              ) : (
-                                <FormattedText text={msg.content} />
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {isChatLoading && (
-                          <div className="flex justify-start animate-message">
-                            {/* Novo visual de carregamento "Thinking" estilo Gemini */}
-                            <div className="border border-neutral-200 dark:border-zinc-700 p-4 rounded-2xl rounded-tl-sm w-16 h-12 flex items-center justify-center gap-1.5 animate-shimmer shadow-sm">
-                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce"></span>
-                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{animationDelay: '0.15s'}}></span>
-                              <span className="w-2 h-2 bg-neutral-400 dark:bg-zinc-500 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></span>
-                            </div>
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-                      <div className="p-4 border-t border-neutral-200 dark:border-zinc-800 bg-neutral-50 dark:bg-zinc-900 flex gap-2">
-                        <input 
-                          type="text" 
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                          placeholder="Pergunte sobre as novas regras ou deduções..."
-                          className="flex-1 bg-white dark:bg-zinc-800 border border-neutral-300 dark:border-zinc-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-neutral-900 dark:focus:ring-zinc-100 outline-none transition shadow-sm"
-                        />
-                        <button 
-                          onClick={handleSendMessage}
-                          disabled={!chatInput.trim() || isChatLoading}
-                          className="bg-neutral-900 dark:bg-zinc-100 text-white dark:text-zinc-900 p-3 rounded-xl disabled:opacity-50 transition flex items-center justify-center shadow-sm hover:scale-105"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'raw' && (
-              <div className="space-y-6 animate-slide-up w-full">
-                {result.fichas && result.fichas.map((item, index) => (
-                  <div key={index} className="bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
-                    <div className="bg-neutral-50 dark:bg-zinc-900/50 px-5 py-3 border-b border-neutral-200 dark:border-zinc-800">
-                      <h3 className="font-semibold text-neutral-800 dark:text-zinc-200">{item.ficha ? formatLabel(item.ficha) : "Ficha"}</h3>
-                    </div>
-                    <div className="p-5 space-y-4">
-                      {item.dados && Object.entries(item.dados).map(([key, value]) => {
-                        const stringValue = String(value);
-                        const isLong = stringValue.length > 50;
-                        return (
-                          <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-center'} pb-3 border-b border-neutral-100 dark:border-zinc-800/50 last:border-0 last:pb-0`}>
-                            <span className="text-sm text-neutral-500 dark:text-zinc-400 font-medium">{formatLabel(key)}</span>
-                            <div className={`flex items-start ${isLong ? 'w-full' : 'sm:max-w-[60%]'} space-x-3`}>
-                              <div className={`text-sm bg-neutral-50 dark:bg-zinc-800/50 px-3 py-2 rounded-md font-mono ${isLong ? 'w-full text-justify' : ''} break-words text-neutral-800 dark:text-zinc-300 border border-neutral-100 dark:border-zinc-700/50`}>{stringValue}</div>
-                              <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white p-2 bg-neutral-50 dark:bg-zinc-800 rounded-md shrink-0 transition border border-neutral-100 dark:border-zinc-700/50" title="Copiar">
-                                {copiedKey === `${index}-${key}` ? <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

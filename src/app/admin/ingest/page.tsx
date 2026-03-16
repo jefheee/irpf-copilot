@@ -1,17 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-// Função de fatiamento corrigida: agora corta por linhas simples
 function chunkText(text: string, chunkSize: number = 1000): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
-  // Divide por qualquer tipo de quebra de linha (Windows ou Linux/Mac)
   const paragraphs = text.split(/\r?\n/);
 
   for (const paragraph of paragraphs) {
     const trimmed = paragraph.trim();
-    if (!trimmed) continue; // Ignora linhas em branco
+    if (!trimmed) continue;
     
     if ((currentChunk.length + trimmed.length) < chunkSize) {
       currentChunk += trimmed + '\n\n';
@@ -28,6 +26,12 @@ export default function AdminIngest() {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [isDarkMode]);
 
   const handleProcess = async () => {
     if (files.length === 0) return;
@@ -76,7 +80,6 @@ export default function AdminIngest() {
             }
           }
 
-          // Pausa obrigatória para não ser bloqueado pelo Google
           await new Promise(resolve => setTimeout(resolve, 4200));
         }
 
@@ -91,38 +94,80 @@ export default function AdminIngest() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 p-10 text-neutral-900">
-      <div className="max-w-3xl mx-auto space-y-6 bg-white p-8 border border-neutral-200 rounded-xl shadow-sm">
-        <h1 className="text-2xl font-bold">Painel Admin: Ingestão de Conhecimento</h1>
-        <p className="text-neutral-600 text-sm">
-          A IA vai enviar o seu ficheiro aos pedaços. Prepare um café, pois um ficheiro de 411 páginas
-          pode demorar algum tempo, mas a segurança é garantida.
-        </p>
-
-        <div className="space-y-4">
-          <input
-            type="file"
-            accept=".txt"
-            multiple
-            onChange={(e) => setFiles(Array.from(e.target.files || []))}
-            className="block w-full border border-neutral-300 p-3 rounded-lg bg-neutral-50"
-          />
-
-          <button
-            onClick={handleProcess}
-            disabled={files.length === 0 || isLoading}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
+    <main className="min-h-screen flex flex-col bg-neutral-50 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-300">
+      
+      {/* HEADER PADRONIZADO */}
+      <header className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-neutral-200/80 dark:border-zinc-800/80 sticky top-0 z-50 transition-colors duration-300">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-500 p-1.5 rounded-lg shadow-sm shadow-blue-500/20">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          </div>
+          <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-700 to-blue-500 dark:from-blue-400 dark:to-blue-300 bg-clip-text text-transparent">
+            IRPF Copilot <span className="text-sm font-medium text-neutral-400 dark:text-zinc-500 ml-2">Admin</span>
+          </h1>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2.5 rounded-full bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300 hover:bg-neutral-200 dark:hover:bg-zinc-700 transition-all"
           >
-            {isLoading ? 'Processando (não feche a página)...' : 'Vetorizar e Salvar no Supabase'}
+            {isDarkMode ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
           </button>
         </div>
+      </header>
 
-        {status && (
-          <div className="mt-6 bg-neutral-900 text-green-400 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap max-h-[400px] overflow-y-auto custom-scrollbar">
-            {status}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-4xl mx-auto">
+        <div className="w-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-3xl shadow-xl p-8 space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Ingestão de Conhecimento RAG</h2>
+            <p className="text-neutral-500 dark:text-zinc-400 text-sm">
+              Faça o upload dos seus arquivos <strong>.txt</strong>. O sistema enviará pedaço por pedaço
+              para a base vetorial do Supabase com pausas de segurança.
+            </p>
           </div>
-        )}
+
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-neutral-300 dark:border-zinc-700 rounded-2xl p-6 text-center hover:border-blue-400 transition-colors">
+              <input
+                type="file"
+                id="rag-upload"
+                accept=".txt"
+                multiple
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                className="hidden"
+              />
+              <label htmlFor="rag-upload" className="cursor-pointer w-full flex flex-col items-center">
+                <div className="p-3 rounded-full mb-3 bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                </div>
+                <span className="font-semibold text-sm text-neutral-800 dark:text-zinc-200">
+                  {files.length > 0 ? `${files.length} Ficheiro(s) Selecionado(s)` : 'Anexar Base de Conhecimento (.txt)'}
+                </span>
+              </label>
+            </div>
+
+            <button
+              onClick={handleProcess}
+              disabled={files.length === 0 || isLoading}
+              className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl font-bold text-lg disabled:opacity-50 hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 shadow-md"
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Processando Base...
+                </>
+              ) : 'Vetorizar e Salvar'}
+            </button>
+          </div>
+
+          {status && (
+            <div className="mt-6 bg-zinc-950 dark:bg-black text-green-400 border border-zinc-800 p-4 rounded-xl text-sm font-mono whitespace-pre-wrap max-h-[300px] overflow-y-auto custom-scrollbar shadow-inner">
+              {status}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

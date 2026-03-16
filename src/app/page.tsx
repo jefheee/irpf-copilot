@@ -26,7 +26,10 @@ const FormattedText = ({ text }: { text: string }) => {
 };
 
 export default function Home() {
-  const [files, setFiles] = useState<File[]>([]);
+  // Estados de Upload Separados
+  const [baseFile, setBaseFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any[] | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -36,7 +39,7 @@ export default function Home() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui sobre a sua evolução patrimonial e recibos novos.' }
+    { role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -55,19 +58,24 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, selectedTask]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setFiles(Array.from(e.target.files));
+  const handleBaseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setBaseFile(e.target.files[0]);
+  };
+
+  const handleReceiptsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setReceiptFiles(Array.from(e.target.files));
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
+    if (!baseFile && receiptFiles.length === 0) return;
     setLoading(true);
     setResult(null);
     setSelectedTask(null);
     setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus documentos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer-me uma pergunta aqui.' }]);
     
     const formData = new FormData();
-    files.forEach((file) => formData.append('documents', file));
+    if (baseFile) formData.append('baseDocument', baseFile);
+    receiptFiles.forEach((file) => formData.append('receipts', file));
 
     try {
       const response = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -82,7 +90,6 @@ export default function Home() {
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !result) return;
-    
     const newMessage: Message = { role: 'user', content: chatInput };
     setChatMessages(prev => [...prev, newMessage]);
     setChatInput('');
@@ -119,7 +126,6 @@ export default function Home() {
     } catch (err) { alert("Navegador bloqueou a cópia."); }
   };
 
-  // Dicionário de Correção de Siglas e Nomes
   const formatLabel = (key: string) => {
     let formatted = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const acronyms: { [key: string]: string } = {
@@ -134,7 +140,7 @@ export default function Home() {
   };
 
   const handleClear = () => {
-    setFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null);
+    setBaseFile(null); setReceiptFiles([]); setResult(null); setActiveTab('assistant'); setSelectedTask(null);
   };
 
   const planoAcaoNode = result?.find(r => r.ficha === "Plano de Ação");
@@ -169,38 +175,63 @@ export default function Home() {
                 <svg className="w-5 h-5 text-neutral-700 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
               </div>
               <div>
-                <h3 className="font-medium text-sm">Retenção Zero</h3>
+                <h3 className="font-medium text-sm">Privacidade & Retenção Zero</h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                  Documentos processados em memória RAM e destruídos na hora. Nada é salvo.
+                  Processamento feito em memória RAM. Os ficheiros são destruídos imediatamente após a extração.
                 </p>
               </div>
             </div>
 
-            <div className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl p-12 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors duration-300">
-              <input type="file" id="file-upload" className="hidden" onChange={handleFileChange} accept="image/*,application/pdf" multiple />
-              <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center space-y-3">
-                <div className="bg-neutral-100 dark:bg-neutral-800 p-4 rounded-full mb-2">
-                  <svg className="w-8 h-8 text-neutral-600 dark:text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                </div>
-                <span className="text-neutral-700 dark:text-neutral-200 font-medium text-lg">
-                  {files.length > 0 ? `${files.length} ficheiro(s) selecionado(s)` : 'Anexe PDFs e Imagens aqui'}
-                </span>
-                <span className="text-sm text-neutral-400">Arraste a declaração do ano passado (PDF) e os recibos novos.</span>
-              </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Zona 1: Documento Base */}
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-neutral-400'}`}>
+                <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf" />
+                <label htmlFor="base-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
+                  <div className={`p-4 rounded-full mb-2 ${baseFile ? 'bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-200' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'}`}>
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <span className="font-medium text-lg text-neutral-800 dark:text-neutral-200">
+                    {baseFile ? '✓ Declaração Base Anexada' : 'Declaração Anterior (Opcional)'}
+                  </span>
+                  <span className="text-sm text-neutral-400 px-4">Anexe o PDF da declaração do IRPF do ano passado para servir de comparativo.</span>
+                  {baseFile && <span className="text-xs text-blue-600 dark:text-blue-400 font-mono mt-2">{baseFile.name}</span>}
+                </label>
+              </div>
+
+              {/* Zona 2: Recibos Novos */}
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-300 flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-neutral-400'}`}>
+                <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
+                <label htmlFor="receipts-upload" className="cursor-pointer flex flex-col items-center space-y-3 w-full">
+                  <div className={`p-4 rounded-full mb-2 ${receiptFiles.length > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-200' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300'}`}>
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  </div>
+                  <span className="font-medium text-lg text-neutral-800 dark:text-neutral-200">
+                    {receiptFiles.length > 0 ? `✓ ${receiptFiles.length} Ficheiro(s) Anexado(s)` : 'Recibos do Ano Atual'}
+                  </span>
+                  <span className="text-sm text-neutral-400 px-4">Informes de rendimento, consórcios, notas fiscais, faturas.</span>
+                </label>
+              </div>
             </div>
 
             <button 
               onClick={handleUpload}
-              disabled={files.length === 0 || loading}
+              disabled={(!baseFile && receiptFiles.length === 0) || loading}
               className="w-full bg-blue-600 text-white py-4 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex justify-center items-center gap-2"
             >
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  A analisar e cruzar dados...
+                  A analisar documentos...
                 </>
               ) : 'Gerar Plano de Ação'}
             </button>
+          </div>
+        )}
+
+        {result && result.length === 0 && (
+          <div className="animate-fade-in bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-6 rounded-xl text-center">
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal encontrado nos ficheiros submetidos.</h3>
+            <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 dark:text-red-400 underline">Tentar novamente</button>
           </div>
         )}
 
@@ -230,7 +261,7 @@ export default function Home() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* Coluna Esquerda: Menu do Plano de Ação */}
-                <div className="lg:col-span-5 space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                <div className="lg:col-span-5 space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   <h3 className="text-lg font-semibold border-b border-neutral-200 dark:border-neutral-800 pb-2 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                     Passo a Passo (Ações)

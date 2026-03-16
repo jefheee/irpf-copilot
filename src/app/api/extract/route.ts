@@ -4,42 +4,58 @@ import { NextResponse } from 'next/server';
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
-const systemPrompt = `Você é um Analista Fiscal Especialista em IRPF 2025/2026.
-O seu propósito é cruzar os dados da declaração do ano passado com os novos recibos e criar um JSON ESTRITO.
+const systemPrompt = `Você é um Analista Fiscal Especialista em IRPF.
+O seu propósito é cruzar a declaração base (ano anterior) com os novos recibos (ano atual) e criar um JSON ESTRITO.
 
 ESTRUTURA DE SAÍDA EXIGIDA:
 [
   {
-    "ficha": "Nome da Ficha",
+    "ficha": "Nome Exato da Ficha",
     "dados": { "chave_amigavel": "Valor a ser copiado" }
   }
 ]
 
-PLANO DE AÇÃO (GUIA PASSO A PASSO OBRIGATÓRIO SE HOUVER ARQUIVOS):
-Crie como PRIMEIRO objeto do array a ficha "Plano de Ação".
+PLANO DE AÇÃO (GUIA PASSO A PASSO OBRIGATÓRIO SE HOUVER MUDANÇAS):
+Crie como PRIMEIRO objeto a ficha "Plano de Ação".
 "dados": {
   "tarefas": [
     {
-      "titulo": "Resumo (ex: Declarar Veículo ONIX)",
-      "caminho": "MENU EXATO DO APP (Use EXATAMENTE um destes nomes: Identificação do Contribuinte, Dependentes, Rendimentos Tributáveis Recebidos de Pessoa Jurídica, Rendimentos Isentos e Não Tributáveis, Rendimentos Sujeitos à Tributação Exclusiva/Definitiva, Pagamentos Efetuados, Bens e Direitos, Dívidas e Ônus Reais) > Botão 'Novo'",
-      "detalhes": "Escreva um guia natural, em português, dizendo ao usuário EXATAMENTE o que preencher e em qual campo. Exemplo: '1. No campo CNPJ, digite X. 2. No campo Discriminação, cole o texto Y. 3. No campo Situação em 31/12, digite o valor de R$ Z'. NUNCA use formato JSON aqui."
+      "titulo": "Resumo (ex: Adicionar Veículo ONIX)",
+      "caminho": "USE UM DESTES NOMES EXATOS: Identificação do Contribuinte, Dependentes, Rendimentos Tributáveis Recebidos de Pessoa Jurídica, Rendimentos Isentos e Não Tributáveis, Rendimentos Sujeitos à Tributação Exclusiva/Definitiva, Pagamentos Efetuados, Bens e Direitos, Dívidas e Ônus Reais > Botão 'Novo'",
+      "detalhes": "Escreva um guia natural, em português, dizendo EXATAMENTE o que preencher e em qual campo. NUNCA use formato JSON aqui."
     }
   ]
-}`;
+}
+
+REGRA DE FORMATAÇÃO MONETÁRIA (CRÍTICA):
+TODO E QUALQUER valor financeiro (situação_ano_atual, rendimentos, impostos, parcelas) DEVE ser formatado nativamente como STRING no formato moeda brasileira. Exemplo: "R$ 84.940,00" ou "R$ 1.500,50". NUNCA retorne números inteiros flutuantes puros (ex: 84940).`;
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const files = formData.getAll('documents') as File[];
+    const baseDocument = formData.get('baseDocument') as File | null;
+    const receipts = formData.getAll('receipts') as File[];
 
-    if (!files || files.length === 0) return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    if (!baseDocument && receipts.length === 0) return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
 
-    const fileParts = await Promise.all(
-      files.map(async (file) => {
+    const parts: any[] = [];
+
+    // Estratégia de Separação de Contexto Temporal
+    if (baseDocument) {
+      parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
+      const arrayBuffer = await baseDocument.arrayBuffer();
+      parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
+    }
+
+    if (receipts.length > 0) {
+      parts.push("=== INFORMES E RECIBOS DO ANO ATUAL (NOVIDADES) ===");
+      for (const file of receipts) {
         const arrayBuffer = await file.arrayBuffer();
-        return { inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } };
-      })
-    );
+        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
+      }
+    }
+
+    parts.push("Com base na documentação acima, extraia os dados, formate os valores financeiros em Reais (R$) e crie as tarefas usando os menus exatos da barra lateral do IRPF.");
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 
@@ -47,7 +63,7 @@ export async function POST(req: Request) {
       generationConfig: { temperature: 0, responseMimeType: 'application/json' },
     });
 
-    const result = await model.generateContent([...fileParts, "Crie as tarefas usando os menus exatos da barra lateral do IRPF e detalhe o passo a passo em linguagem natural."]);
+    const result = await model.generateContent(parts);
     return NextResponse.json(JSON.parse(result.response.text()));
   } catch (error) {
     return NextResponse.json({ error: 'Falha ao processar.' }, { status: 500 });

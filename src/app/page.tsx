@@ -6,7 +6,6 @@ type Message = { role: 'user' | 'assistant'; content: string; isNew?: boolean };
 type Task = { titulo: string; caminho: string; detalhes: string };
 type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
 
-// Renderizador Markdown Completo
 const FormattedText = ({ text }: { text: string }) => {
   return (
     <div className="space-y-4">
@@ -41,7 +40,6 @@ const FormattedText = ({ text }: { text: string }) => {
   );
 };
 
-// Efeito de Máquina de Escrever para a IA
 const TypewriterText = ({ text }: { text: string }) => {
   const [displayedText, setDisplayedText] = useState('');
 
@@ -51,7 +49,7 @@ const TypewriterText = ({ text }: { text: string }) => {
       setDisplayedText(text.slice(0, i + 1));
       i++;
       if (i >= text.length) clearInterval(timer);
-    }, 8); // Velocidade da digitação
+    }, 6); // Aumentei a velocidade para 6ms para o utilizador não ficar muito tempo à espera
     
     return () => clearInterval(timer);
   }, [text]);
@@ -71,10 +69,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'assistant' | 'raw'>('assistant');
   
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState(''); // O input agora começa estritamente vazio
   const [isChatLoading, setIsChatLoading] = useState(false);
   
-  // Controle de alertas e modais
   const [dismissedDocs, setDismissedDocs] = useState<number[]>([]);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -115,7 +112,7 @@ export default function Home() {
         setResult(data as ExtractedData);
         setChatMessages([{ 
           role: 'assistant', 
-          content: 'Olá! Já auditei os seus documentos. Extraí todos os dados e criei os **Cards de Ação** aqui em baixo. Clique num card para eu te ensinar como preenchê-lo, ou pergunte o que quiser!', 
+          content: 'Olá! Já auditei os seus documentos com base nas **novas regras de 2026**. \n\nNo menu lateral, criei as suas **Ações Pendentes**. Clique em qualquer uma delas e eu dou-lhe o passo a passo exato de preenchimento, ou pergunte o que quiser aqui no chat!', 
           isNew: true 
         }]);
       } else {
@@ -150,7 +147,7 @@ export default function Home() {
     }
   };
 
-  // Magia do UX: Clicar no Card simula uma conversa no chat
+  // Simula uma conversa no chat quando o utilizador clica numa tarefa
   const handleCardClick = (task: Task) => {
     setChatMessages(prev => [
       ...prev, 
@@ -205,40 +202,43 @@ export default function Home() {
   const visiblePendingDocs = result?.documentos_pendentes?.filter((_, i) => !dismissedDocs.includes(i)) || [];
 
   return (
-    <main className="min-h-screen bg-neutral-50 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 flex flex-col font-sans transition-colors duration-300 relative">
+    <main className="h-screen flex flex-col bg-neutral-50 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-300 overflow-hidden">
       
-      {/* HEADER FIXO */}
-      <header className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-neutral-200 dark:border-zinc-800 sticky top-0 z-50">
+      {/* HEADER FIXO SUPER CLEAN */}
+      <header className="flex justify-between items-center px-6 py-3 bg-white dark:bg-zinc-900 border-b border-neutral-200 dark:border-zinc-800 z-50">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">IRPF Copilot</h1>
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Botão de Alerta Clean */}
+          {/* Botão de Alerta Compacto e Chamativo */}
           {result && visiblePendingDocs.length > 0 && (
             <div className="relative">
               <button 
                 onClick={() => setShowAlertsModal(!showAlertsModal)}
-                className="flex items-center gap-2 px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/30 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                title="Avisos Pendentes"
               >
-                <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <span className="text-xs font-bold bg-amber-500 text-white rounded-full w-5 h-5 flex items-center justify-center absolute -top-1 -right-1 border-2 border-white dark:border-zinc-900">{visiblePendingDocs.length}</span>
+                <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <span className="text-xs font-bold">{visiblePendingDocs.length} Avisos</span>
               </button>
 
-              {/* Modal Pop-over do Alerta */}
+              {/* Modal de Alerta (Drop-down) */}
               {showAlertsModal && (
-                <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-hidden animate-slide-up z-50">
-                  <div className="bg-amber-50 dark:bg-amber-900/20 p-3 border-b border-amber-100 dark:border-amber-800/30 flex justify-between items-center">
-                    <span className="font-semibold text-amber-800 dark:text-amber-400 text-sm">Documentos Faltantes</span>
-                    <button onClick={() => setShowAlertsModal(false)} className="text-amber-600 hover:text-amber-800"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden animate-slide-up z-50">
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 border-b border-red-100 dark:border-red-800/30 flex justify-between items-center">
+                    <span className="font-semibold text-red-800 dark:text-red-400 text-sm">Faltam estes documentos</span>
+                    <button onClick={() => setShowAlertsModal(false)} className="text-red-600 hover:text-red-800"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                   </div>
-                  <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                     {result.documentos_pendentes.map((doc, idx) => {
                       if (dismissedDocs.includes(idx)) return null;
                       return (
-                        <div key={idx} className="flex justify-between items-center p-2 hover:bg-neutral-50 dark:hover:bg-zinc-700/50 rounded-lg group">
+                        <div key={idx} className="flex justify-between items-center p-2 hover:bg-neutral-50 dark:hover:bg-zinc-700/50 rounded-lg group border border-transparent hover:border-neutral-200 dark:hover:border-zinc-600 transition-all">
                           <span className="text-xs text-neutral-700 dark:text-neutral-300">{doc}</span>
-                          <button onClick={() => setDismissedDocs(prev => [...prev, idx])} className="opacity-0 group-hover:opacity-100 text-red-500 p-1" title="Dispensar"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                          <button onClick={() => setDismissedDocs(prev => [...prev, idx])} className="opacity-0 group-hover:opacity-100 text-red-500 p-1 bg-red-50 dark:bg-red-900/30 rounded" title="Dispensar aviso">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
                         </div>
                       );
                     })}
@@ -249,21 +249,21 @@ export default function Home() {
           )}
 
           {result && (
-            <button onClick={handleClear} className="text-xs font-medium text-neutral-500 hover:text-red-500 transition px-2">Limpar</button>
+            <button onClick={handleClear} className="text-xs font-semibold text-neutral-500 hover:text-red-500 transition px-2">Limpar Tudo</button>
           )}
 
           <button 
             onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-2 rounded-full bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300 hover:bg-neutral-200 dark:hover:bg-zinc-700 transition-all"
           >
-            {isDarkMode ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
+            {isDarkMode ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
           </button>
         </div>
       </header>
 
-      {/* ESTADO INICIAL: TELA DE PESQUISA / UPLOAD ESTILO CANVA */}
+      {/* ESTADO 1: TELA INICIAL LIMPA (ESTILO CANVA/GOOGLE) */}
       {!result && (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up w-full max-w-4xl mx-auto mt-10">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 animate-slide-up w-full max-w-4xl mx-auto overflow-y-auto">
           <h2 className="text-4xl sm:text-5xl font-extrabold text-center text-neutral-900 dark:text-white mb-4 tracking-tight">
             Como posso otimizar a sua <span className="text-blue-600 dark:text-blue-400">declaração</span> hoje?
           </h2>
@@ -273,7 +273,6 @@ export default function Home() {
 
           <div className="w-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-3xl shadow-xl p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Caixa Base */}
               <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf,application/json" />
                 <label htmlFor="base-upload" className="cursor-pointer w-full flex flex-col items-center">
@@ -285,7 +284,6 @@ export default function Home() {
                 </label>
               </div>
 
-              {/* Caixa Recibos */}
               <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors flex flex-col items-center justify-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
                 <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
                 <label htmlFor="receipts-upload" className="cursor-pointer w-full flex flex-col items-center">
@@ -308,32 +306,67 @@ export default function Home() {
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   A analisar documentos...
                 </>
-              ) : 'Analisar e Criar Plano de Ação'}
+              ) : 'Analisar e Auditar IRPF'}
             </button>
           </div>
         </div>
       )}
 
-      {/* ESTADO PROCESSADO: CHAT CENTRALIZADO COM CARDS E BARRA GIGANTE */}
+      {/* ESTADO 2: WORKSPACE (SIDEBAR + CHAT/DADOS) */}
       {result && (
-        <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col h-[calc(100vh-80px)] pb-6 relative animate-fade-in">
+        <div className="flex-1 flex overflow-hidden bg-neutral-50 dark:bg-zinc-950 animate-fade-in w-full max-w-[1400px] mx-auto border-x border-neutral-200 dark:border-zinc-800 shadow-2xl">
           
-          {/* Abas Superiores (Opcional, para alternar entre Chat e Dados Brutos) */}
-          <div className="flex justify-center my-4">
-            <div className="flex bg-neutral-200/50 dark:bg-zinc-800/50 p-1 rounded-xl">
-              <button onClick={() => setActiveTab('assistant')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'assistant' ? 'bg-white dark:bg-zinc-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Assistente</button>
-              <button onClick={() => setActiveTab('raw')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'raw' ? 'bg-white dark:bg-zinc-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Dados Extraídos</button>
+          {/* SIDEBAR ESQUERDA: PLANO DE AÇÃO (Estilo Menu do Canva/ChatGPT) */}
+          <aside className="w-80 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-neutral-200 dark:border-zinc-800 hidden md:flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            <div className="p-5 border-b border-neutral-100 dark:border-zinc-800/50">
+              <h2 className="font-bold text-xs uppercase tracking-widest text-neutral-500 dark:text-zinc-400 flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                Ações Pendentes
+              </h2>
             </div>
-          </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {result.plano_acao && result.plano_acao.length > 0 ? (
+                result.plano_acao.map((task, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => { setActiveTab('assistant'); handleCardClick(task); }}
+                    className="w-full text-left p-3 rounded-xl bg-neutral-50 dark:bg-zinc-800/50 border border-neutral-200/50 dark:border-zinc-700/30 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-white dark:hover:bg-zinc-800 transition-all group flex items-start gap-3 shadow-sm hover:shadow"
+                  >
+                    <div className="w-6 h-6 mt-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex flex-shrink-0 items-center justify-center text-xs font-bold">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-neutral-800 dark:text-zinc-200 line-clamp-2 leading-snug">{task.titulo}</p>
+                      <span className="text-[10px] text-blue-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity mt-1 block">Pedir ajuda à IA &rarr;</span>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <p className="text-neutral-400 text-sm italic text-center mt-10">Tudo preenchido!</p>
+              )}
+            </div>
+          </aside>
 
-          {activeTab === 'assistant' ? (
-            <>
-              {/* Área de Mensagens do Chat */}
-              <div className="flex-1 overflow-y-auto px-4 space-y-6 custom-scrollbar pb-32">
+          {/* ÁREA PRINCIPAL DIREITA (CHAT ou DADOS) */}
+          <main className="flex-1 flex flex-col relative bg-neutral-50 dark:bg-zinc-950 overflow-hidden">
+            
+            {/* TABS SUPERIORES */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex justify-center p-3 pointer-events-none">
+              <div className="flex bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md p-1 rounded-xl shadow-sm border border-neutral-200/50 dark:border-zinc-700/50 pointer-events-auto">
+                <button onClick={() => setActiveTab('assistant')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'assistant' ? 'bg-white dark:bg-zinc-800 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Assistente IA</button>
+                <button onClick={() => setActiveTab('raw')} className={`px-6 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'raw' ? 'bg-white dark:bg-zinc-800 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}>Dados Extraídos</button>
+              </div>
+            </div>
+
+            {/* CONTEÚDO DO CHAT (O "display: hidden" garante que a IA não esquece a digitação) */}
+            <div className={`flex-1 flex flex-col w-full h-full relative ${activeTab === 'assistant' ? 'flex' : 'hidden'}`}>
+              
+              {/* O Chat em si */}
+              <div className="flex-1 overflow-y-auto px-4 md:px-10 pt-20 pb-32 space-y-6 custom-scrollbar scroll-smooth">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={`flex animate-message ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {/* Contrastes Perfeitos para o Chat */}
-                    <div className={`max-w-[85%] p-5 rounded-3xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 text-neutral-800 dark:text-neutral-200 rounded-bl-sm'}`}>
+                    <div className={`max-w-[85%] md:max-w-[75%] p-5 rounded-3xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900 rounded-br-sm' : 'bg-white border border-neutral-200 dark:bg-zinc-900 dark:border-zinc-800 text-neutral-800 dark:text-neutral-200 rounded-bl-sm'}`}>
                       {msg.isNew && msg.role === 'assistant' ? <TypewriterText text={msg.content} /> : <FormattedText text={msg.content} />}
                     </div>
                   </div>
@@ -351,80 +384,66 @@ export default function Home() {
                 <div ref={chatEndRef} className="h-4" />
               </div>
 
-              {/* BARRA INFERIOR: Cards de Ação + Input Estilo Canva */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 bg-gradient-to-t from-neutral-50 via-neutral-50 to-transparent dark:from-zinc-950 dark:via-zinc-950">
-                
-                {/* Carrossel de Cards de Ação Horizontal */}
-                {result.plano_acao && result.plano_acao.length > 0 && (
-                  <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide snap-x">
-                    {result.plano_acao.map((task, idx) => (
-                      <button 
-                        key={idx} 
-                        onClick={() => handleCardClick(task)}
-                        className="flex-none w-64 text-left bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 p-4 rounded-2xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all snap-center group"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">{idx + 1}</div>
-                          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 dark:text-zinc-500 group-hover:text-blue-500 transition-colors">Ação Pendente</span>
-                        </div>
-                        <h4 className="font-semibold text-neutral-800 dark:text-white text-sm line-clamp-2">{task.titulo}</h4>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Input Gigante Estilo Canva */}
-                <div className="bg-white dark:bg-zinc-900 border border-neutral-300 dark:border-zinc-700 rounded-full shadow-lg p-2 flex items-center gap-2 relative focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
-                  <div className="pl-4 text-neutral-400">
+              {/* INPUT INFERIOR FLUTUANTE ESTILO CANVA/CHATGPT */}
+              <div className="absolute bottom-6 left-4 right-4 md:left-10 md:right-10 z-20">
+                <div className="bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 rounded-full shadow-2xl p-2 flex items-center gap-3 relative focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                  <div className="pl-4 text-blue-500">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
                   </div>
+                  {/* BUG CORRIGIDO: value={} e placeholder="" estão estritamente separados agora */}
                   <input 
                     type="text" 
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Pergunte à IA ou clique num card acima..."
-                    className="flex-1 bg-transparent border-none text-base px-2 py-3 outline-none text-neutral-800 dark:text-white placeholder-neutral-400"
+                    placeholder="Pergunte à IA ou clique num passo ao lado..."
+                    className="flex-1 bg-transparent border-none text-base px-2 py-3 outline-none text-neutral-800 dark:text-white placeholder-neutral-400 dark:placeholder-zinc-500"
                   />
                   <button 
                     onClick={handleSendMessage}
                     disabled={!chatInput.trim() || isChatLoading}
-                    className="bg-blue-600 text-white p-3 rounded-full disabled:opacity-50 hover:bg-blue-700 transition-transform hover:scale-105 shadow-sm mr-1"
+                    className="bg-blue-600 text-white p-3.5 rounded-full disabled:opacity-50 hover:bg-blue-700 transition-transform hover:scale-105 shadow-md mr-1"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                   </button>
                 </div>
-              </div>
-            </>
-          ) : (
-            /* ABA DOS DADOS EXTRAÍDOS (Mantida a mesma lógica, ajustado o padding inferior) */
-            <div className="space-y-6 w-full overflow-y-auto pb-10 px-2 custom-scrollbar">
-              {result.fichas && result.fichas.map((item, index) => (
-                <div key={index} className="bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="bg-neutral-50 dark:bg-zinc-800/50 px-5 py-4 border-b border-neutral-200 dark:border-zinc-800">
-                    <h3 className="font-bold text-neutral-800 dark:text-zinc-200">{item.ficha ? formatLabel(item.ficha) : "Ficha"}</h3>
-                  </div>
-                  <div className="p-5 space-y-4">
-                    {item.dados && Object.entries(item.dados).map(([key, value]) => {
-                      const stringValue = String(value);
-                      const isLong = stringValue.length > 50;
-                      return (
-                        <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-center'} pb-3 border-b border-neutral-100 dark:border-zinc-800/50 last:border-0 last:pb-0`}>
-                          <span className="text-sm text-neutral-500 dark:text-zinc-400 font-semibold">{formatLabel(key)}</span>
-                          <div className={`flex items-start ${isLong ? 'w-full' : 'sm:max-w-[60%]'} space-x-3`}>
-                            <div className={`text-sm bg-neutral-50 dark:bg-zinc-800/50 px-3 py-2 rounded-lg font-mono ${isLong ? 'w-full text-justify' : ''} break-words text-neutral-800 dark:text-zinc-300 border border-neutral-100 dark:border-zinc-700/50`}>{stringValue}</div>
-                            <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-blue-500 p-2 bg-neutral-50 dark:bg-zinc-800 rounded-lg shrink-0 transition border border-neutral-100 dark:border-zinc-700/50" title="Copiar">
-                              {copiedKey === `${index}-${key}` ? <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="text-center mt-3">
+                  <span className="text-[10px] text-neutral-400 dark:text-zinc-600 font-medium tracking-wide">A IA PODE COMETER ERROS FISCAIS. VERIFIQUE AS INFORMAÇÕES GERADAS.</span>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
+
+            {/* ABA DE DADOS EXTRAÍDOS */}
+            <div className={`flex-1 w-full h-full overflow-y-auto px-4 md:px-10 pt-20 pb-10 space-y-6 custom-scrollbar ${activeTab === 'raw' ? 'block' : 'hidden'}`}>
+              <div className="max-w-4xl mx-auto space-y-6">
+                {result.fichas && result.fichas.map((item, index) => (
+                  <div key={index} className="bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm hover:shadow transition-shadow">
+                    <div className="bg-neutral-50 dark:bg-zinc-800/50 px-5 py-4 border-b border-neutral-200 dark:border-zinc-800 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <h3 className="font-bold text-neutral-800 dark:text-zinc-200">{item.ficha ? formatLabel(item.ficha) : "Ficha"}</h3>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {item.dados && Object.entries(item.dados).map(([key, value]) => {
+                        const stringValue = String(value);
+                        const isLong = stringValue.length > 50;
+                        return (
+                          <div key={key} className={`flex ${isLong ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:justify-between sm:items-start'} pb-4 border-b border-neutral-100 dark:border-zinc-800/50 last:border-0 last:pb-0`}>
+                            <span className="text-sm text-neutral-500 dark:text-zinc-400 font-semibold mt-1">{formatLabel(key)}</span>
+                            <div className={`flex items-start ${isLong ? 'w-full' : 'sm:max-w-[65%]'} space-x-3`}>
+                              <div className={`text-sm bg-neutral-50 dark:bg-zinc-800/30 px-4 py-2.5 rounded-xl font-mono ${isLong ? 'w-full text-justify' : ''} break-words text-neutral-800 dark:text-zinc-300 border border-neutral-200/50 dark:border-zinc-700/30 shadow-inner`}>{stringValue}</div>
+                              <button onClick={() => copyToClipboard(stringValue, `${index}-${key}`)} className="text-neutral-400 hover:text-blue-500 p-2.5 bg-neutral-50 dark:bg-zinc-800 rounded-xl shrink-0 transition-colors border border-neutral-200/50 dark:border-zinc-700/50" title="Copiar">
+                                {copiedKey === `${index}-${key}` ? <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
         </div>
       )}
     </main>

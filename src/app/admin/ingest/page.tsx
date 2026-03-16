@@ -2,17 +2,22 @@
 
 import { useState } from 'react';
 
+// Função de fatiamento corrigida: agora corta por linhas simples
 function chunkText(text: string, chunkSize: number = 1000): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
-  const paragraphs = text.split(/\n\s*\n/);
+  // Divide por qualquer tipo de quebra de linha (Windows ou Linux/Mac)
+  const paragraphs = text.split(/\r?\n/);
 
   for (const paragraph of paragraphs) {
-    if ((currentChunk.length + paragraph.length) < chunkSize) {
-      currentChunk += paragraph + '\n\n';
+    const trimmed = paragraph.trim();
+    if (!trimmed) continue; // Ignora linhas em branco
+    
+    if ((currentChunk.length + trimmed.length) < chunkSize) {
+      currentChunk += trimmed + '\n\n';
     } else {
       if (currentChunk.trim()) chunks.push(currentChunk.trim());
-      currentChunk = paragraph + '\n\n';
+      currentChunk = trimmed + '\n\n';
     }
   }
   if (currentChunk.trim()) chunks.push(currentChunk.trim());
@@ -36,7 +41,7 @@ export default function AdminIngest() {
         
         const chunks = chunkText(textData, 1500);
 
-        setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio seguro (15 requisições por minuto)...`);
+        setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio seguro...`);
 
         for (let i = 0; i < chunks.length; i++) {
           setStatus((prev) => {
@@ -71,7 +76,7 @@ export default function AdminIngest() {
             }
           }
 
-          // Pausa de 4.2 segundos OBRIGATÓRIA para não irritar o Google (Limite de 15 RPM)
+          // Pausa obrigatória para não ser bloqueado pelo Google
           await new Promise(resolve => setTimeout(resolve, 4200));
         }
 
@@ -90,8 +95,8 @@ export default function AdminIngest() {
       <div className="max-w-3xl mx-auto space-y-6 bg-white p-8 border border-neutral-200 rounded-xl shadow-sm">
         <h1 className="text-2xl font-bold">Painel Admin: Ingestão de Conhecimento</h1>
         <p className="text-neutral-600 text-sm">
-          Este processo será <strong>lento</strong> (cerca de 4 segundos por bloco) para respeitar
-          as cotas gratuitas do Google Gemini sem causar bloqueios.
+          A IA vai enviar o seu ficheiro aos pedaços. Prepare um café, pois um ficheiro de 411 páginas
+          pode demorar algum tempo, mas a segurança é garantida.
         </p>
 
         <div className="space-y-4">

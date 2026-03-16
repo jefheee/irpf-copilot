@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Ignorado' });
     }
 
-    // 1. Google (Embeddings)
+    // 1. Google (Embeddings) - Usando o modelo atualizado que não dá 404
     let embedding;
     try {
       const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error("Erro do Supabase:", error);
-      return NextResponse.json({ error: `SUPABASE BLOQUEOU: ${error.message} (Esqueceu-se de adicionar a SERVICE_ROLE_KEY no .env?)` }, { status: 500 });
+      return NextResponse.json({ error: `SUPABASE BLOQUEOU: ${error.message}` }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

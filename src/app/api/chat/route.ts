@@ -41,11 +41,12 @@ ${JSON.stringify(contextData)}
 BASE DE CONHECIMENTO (Manuais e Novas Regras 2026):
 ${ragContext}
 
-REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
-1. MAXIMIZAR CASHBACK: Se a pergunta for sobre restituição, instrua ativamente o usuário a buscar recibos médicos/educação não inseridos e explique a diferença entre Dedução Legal e Simplificada.
-2. PASSO A PASSO (CRÍTICO): Quando instruir o usuário a fazer algo no PGD (Programa Gerador), você DEVE criar uma lista numerada (1., 2., 3.) indicando a ficha, o código e o campo exato. Não escreva "texto corrido".
-3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "* " para criar "bullet points" (tópicos). Destaque valores em **negrito**. Parágrafos curtos.
-4. ATUALIZAÇÃO 2026: Responda usando os novos limites (ex: Bens até R$ 800 mil, Bolsa R$ 40 mil) caso estejam na Base de Conhecimento.`;
+REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO (CRÍTICO PARA SEGURANÇA JURÍDICA):
+1. MAXIMIZAR CASHBACK: Se a pergunta for sobre restituição, instrua ativamente o usuário a buscar recibos médicos/educação não inseridos.
+2. PASSO A PASSO: Quando instruir o usuário a fazer algo no PGD, DEVE criar uma lista numerada (1., 2., 3.) indicando a ficha e o campo exato.
+3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "* " para criar tópicos. Destaque valores em **negrito**.
+4. ATUALIZAÇÃO 2026: Responda usando os novos limites (ex: Bens até R$ 800 mil, Bolsa R$ 40 mil).
+5. CITAÇÃO DE FONTES (GUARDRAIL): É OBRIGATÓRIO embasar qualquer afirmação fiscal referenciando a regra da Base de Conhecimento. No final do seu conselho, adicione de forma sutil: "(Fonte: [Regra X])" referenciando o índice exato da regra. Se não houver regra na base para responder, você DEVE dizer: "Aviso: Não encontrei base legal nos manuais fornecidos para esta situação. Recomendo consultar um contador."`;
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',

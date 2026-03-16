@@ -128,11 +128,25 @@ export default function Home() {
     } catch (err) { alert("O navegador bloqueou a cópia."); }
   };
 
-  // Regex avançado para quebrar camelCase e corrigir siglas
+  // CORREÇÃO CRÍTICA: Capitalização (Maiúsculas/Minúsculas) sem quebrar caracteres acentuados
   const formatLabel = (key: string) => {
+    // 1. Quebra camelCase e remove underscores
     let formatted = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
-    formatted = formatted.replace(/\b\w/g, l => l.toUpperCase());
     
+    // 2. Transforma em minúsculas para padronizar
+    formatted = formatted.toLowerCase();
+    
+    // 3. Capitaliza a primeira letra de cada palavra (lidando corretamente com acentos)
+    formatted = formatted.split(' ').map(word => {
+        // Lista de preposições e artigos que devem permanecer em minúsculo
+        const doNotCapitalize = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'em', 'por', 'para', 'com'];
+        if (doNotCapitalize.includes(word) && word !== formatted.split(' ')[0]) {
+            return word;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+    
+    // 4. Aplica as siglas obrigatórias
     const acronyms: { [key: string]: string } = {
       'Cpf': 'CPF', 'Cnpj': 'CNPJ', 'Irrf': 'IRRF', 'Irpf': 'IRPF',
       'Darf': 'DARF', 'B3': 'B3', 'Fii': 'FII', 'Etf': 'ETF', 
@@ -232,10 +246,17 @@ export default function Home() {
           </div>
         )}
 
+        {result && (!result.plano_acao && (!result.fichas || result.fichas.length === 0)) && (
+          <div className="animate-fade-in bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-6 rounded-xl text-center">
+            <h3 className="text-red-800 dark:text-red-400 font-medium">Nenhum dado fiscal válido encontrado nos arquivos.</h3>
+            <button onClick={handleClear} className="mt-4 text-sm font-medium text-red-700 dark:text-red-400 underline">Tentar novamente</button>
+          </div>
+        )}
+
         {result && (result.plano_acao || (result.fichas && result.fichas.length > 0)) && (
           <div className="animate-slide-up space-y-6 w-full">
             
-            {/* Alerta de Documentos Pendentes - Design Limpo */}
+            {/* Alerta de Documentos Pendentes */}
             {visiblePendingDocs.length > 0 && (
               <div className="bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-200/50 dark:border-yellow-800/30 p-4 rounded-xl flex items-start gap-3">
                 <div className="mt-1 text-yellow-600 dark:text-yellow-500 shrink-0">

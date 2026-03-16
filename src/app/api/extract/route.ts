@@ -5,7 +5,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
 const systemPrompt = `Você é um Auditor Fiscal especialista em IRPF.
-O seu trabalho é cruzar o JSON do Ano Anterior (PASSADO) com os Recibos do Ano Atual (PRESENTE).
+O seu trabalho é cruzar o Documento do Ano Anterior (PASSADO) com os Recibos do Ano Atual (PRESENTE).
 
 VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
 
@@ -17,7 +17,7 @@ VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
     {
       "titulo": "Ex: Adicionar Chevrolet Onix",
       "caminho": "MENU NO PGD: Bens e Direitos",
-      "detalhes": "Passo a passo exato."
+      "detalhes": "1. Clique no botão 'Novo'.\\n2. No campo 'Código', selecione '01 - Veículo automotor terrestre'.\\n3. No campo 'Discriminação', cole: '[inserir discriminação completa]'.\\n4. No campo 'Situação em 31/12/2024', insira R$ [inserir soma das parcelas e entrada]."
     }
   ],
   "fichas": [
@@ -28,11 +28,11 @@ VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
   ]
 }
 
-REGRAS DE FORMATAÇÃO E OTIMIZAÇÃO:
+REGRAS DE FORMATAÇÃO E OBRIGATORIEDADE (MUITO IMPORTANTE):
 1. NOME DA FICHA: OBRIGATORIAMENTE use o nome oficial do PGD (ex: 'Rendimentos Isentos'). NUNCA use chaves de código (ex: 'isentosNaoTributaveis').
-2. CHAVES DOS DADOS: Escreva em português claro (ex: "CNPJ da Fonte", "Valor Atual"). NUNCA use camelCase.
-3. VALORES: Formate todos os valores financeiros no padrão "R$ 1.500,00".
-4. VELOCIDADE: Na chave "fichas", inclua APENAS os dados que foram adicionados, alterados ou consolidados a partir dos novos recibos. Não reescreva toda a declaração antiga se ela não sofreu mutação.`;
+2. CHAVES DOS DADOS: Escreva em português claro, usando espaços, COM ACENTOS e sem camelCase (ex: "CNPJ da Fonte", "Valor Atual"). A primeira letra deve ser maiúscula.
+3. GUIA DETALHADO: Em "plano_acao" -> "detalhes", você DEVE fazer um passo-a-passo NUMERADO explicando exatamente qual campo do programa preencher e com qual valor. NÃO crie um texto corrido genérico.
+4. COBERTURA TOTAL EM FICHAS: A chave "fichas" NÃO PODE OMITIR NADA. Você DEVE extrair e reescrever TODOS os dados que encontrou, tanto no PDF do ano anterior quanto nos recibos novos. Liste todos os rendimentos, pagamentos médicos, saldos de contas, etc. Se a declaração tinha 10 bens, a chave "fichas" deve refletir os 10 bens.`;
 
 export async function POST(req: Request) {
   try {

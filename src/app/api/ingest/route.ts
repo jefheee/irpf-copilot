@@ -15,10 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Ignorado' });
     }
 
-    // 1. Google (Embeddings) - Trocando para o modelo universal 'embedding-001'
+    // 1. Google (Embeddings) - O ÚNICO modelo ativo e funcional em 2026
     let embedding;
     try {
-      const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
+      const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
       const result = await embeddingModel.embedContent(chunk);
       embedding = result.embedding.values;
     } catch (e: any) {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `GOOGLE BLOQUEOU: ${e.message}` }, { status: 429 });
     }
 
-    // 2. Supabase (Salvar no Banco)
+    // 2. Supabase (Salvar no Banco) - Agora suporta 3072 dimensões!
     const { error } = await supabase.from('irpf_manual').insert({
       content: chunk,
       embedding: embedding,

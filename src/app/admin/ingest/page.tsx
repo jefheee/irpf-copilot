@@ -2,6 +2,24 @@
 
 import { useState } from 'react';
 
+// Função movida para o front-end para fatiar o texto
+function chunkText(text: string, chunkSize: number = 1000): string[] {
+  const chunks: string[] = [];
+  let currentChunk = '';
+  const paragraphs = text.split(/\n\s*\n/);
+
+  for (const paragraph of paragraphs) {
+    if ((currentChunk.length + paragraph.length) < chunkSize) {
+      currentChunk += paragraph + '\n\n';
+    } else {
+      if (currentChunk.trim()) chunks.push(currentChunk.trim());
+      currentChunk = paragraph + '\n\n';
+    }
+  }
+  if (currentChunk.trim()) chunks.push(currentChunk.trim());
+  return chunks;
+}
+
 export default function AdminIngest() {
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -15,25 +33,41 @@ export default function AdminIngest() {
     try {
       for (const file of files) {
         setStatus((prev) => `${prev}\nLendo arquivo: ${file.name}...`);
-        
-        // Lê o conteúdo do arquivo .txt como texto puro
         const textData = await file.text();
-
-        setStatus((prev) => `${prev}\nVetorizando e enviando ${file.name} para o Supabase. Isso pode demorar alguns minutos...`);
         
-        // Envia para a nossa API de ingestão
-        const res = await fetch('/api/ingest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ textData })
-        });
+        // Fatia o arquivo gigante em blocos de 1500 caracteres
+        const chunks = chunkText(textData, 1500);
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
+        setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio para a IA...`);
 
-        setStatus((prev) => `${prev}\n✅ Sucesso no arquivo ${file.name}: ${data.message}`);
+        // Loop seguro que respeita Rate Limits (limites de taxa)
+        for (let i = 0; i < chunks.length; i++) {
+          
+          // Atualiza o terminal da tela sem poluir infinitamente
+          setStatus((prev) => {
+            const lines = prev.split('\n');
+            if (lines[lines.length - 1].startsWith('Enviando bloco')) lines.pop();
+            return lines.join('\n') + `\nEnviando bloco ${i + 1} de ${chunks.length}...`;
+          });
+
+          const res = await fetch('/api/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chunk: chunks[i] })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(`Falha no bloco ${i + 1}: ${errData.error}`);
+          }
+
+          // Pausa de 400ms para a API do Google respirar
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
+
+        setStatus((prev) => `${prev}\n✅ Sucesso absoluto no arquivo ${file.name}!`);
       }
-      setStatus((prev) => `${prev}\n🎉 Todos os arquivos foram processados e salvos no banco vetorial!`);
+      setStatus((prev) => `${prev}\n🎉 Todos os arquivos foram vetorizados e salvos no Supabase! O seu RAG está pronto.`);
     } catch (error: any) {
       setStatus((prev) => `${prev}\n❌ Erro: ${error.message}`);
     } finally {
@@ -46,8 +80,8 @@ export default function AdminIngest() {
       <div className="max-w-3xl mx-auto space-y-6 bg-white p-8 border border-neutral-200 rounded-xl shadow-sm">
         <h1 className="text-2xl font-bold">Painel Admin: Ingestão de Conhecimento (RAG)</h1>
         <p className="text-neutral-600 text-sm">
-          Faça o upload dos seus arquivos <strong>.txt</strong> (Manual da Receita, Perguntas e Respostas).
-          O sistema vai fatiar o texto, converter em vetores matemáticos e salvar no Supabase.
+          Faça o upload dos seus arquivos <strong>.txt</strong>. O sistema vai enviar pedaço por pedaço
+          para evitar sobrecarga nos servidores do Google.
         </p>
 
         <div className="space-y-4">
@@ -64,12 +98,12 @@ export default function AdminIngest() {
             disabled={files.length === 0 || isLoading}
             className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
           >
-            {isLoading ? 'Processando arquivos...' : 'Vetorizar e Salvar no Supabase'}
+            {isLoading ? 'Processando e Vetorizando...' : 'Vetorizar e Salvar no Supabase'}
           </button>
         </div>
 
         {status && (
-          <div className="mt-6 bg-neutral-900 text-green-400 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
+          <div className="mt-6 bg-neutral-900 text-green-400 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto custom-scrollbar">
             {status}
           </div>
         )}

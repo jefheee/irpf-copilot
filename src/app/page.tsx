@@ -130,29 +130,25 @@ export default function Home() {
 
   // CORREÇÃO CRÍTICA: Capitalização (Maiúsculas/Minúsculas) sem quebrar caracteres acentuados
   const formatLabel = (key: string) => {
-    // 1. Quebra camelCase e remove underscores
-    let formatted = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+    // Substitui underscores por espaços e quebra possíveis camelCases herdados
+    let formatted = key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
     
-    // 2. Transforma em minúsculas para padronizar
-    formatted = formatted.toLowerCase();
-    
-    // 3. Capitaliza a primeira letra de cada palavra (lidando corretamente com acentos)
-    formatted = formatted.split(' ').map(word => {
-        // Lista de preposições e artigos que devem permanecer em minúsculo
+    // Capitaliza apenas a primeira letra de cada palavra (respeitando acentos via locale)
+    formatted = formatted.toLowerCase().split(' ').map(word => {
         const doNotCapitalize = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'em', 'por', 'para', 'com'];
-        if (doNotCapitalize.includes(word) && word !== formatted.split(' ')[0]) {
+        if (doNotCapitalize.includes(word) && word !== formatted.toLowerCase().split(' ')[0]) {
             return word;
         }
         return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
     
-    // 4. Aplica as siglas obrigatórias
     const acronyms: { [key: string]: string } = {
       'Cpf': 'CPF', 'Cnpj': 'CNPJ', 'Irrf': 'IRRF', 'Irpf': 'IRPF',
       'Darf': 'DARF', 'B3': 'B3', 'Fii': 'FII', 'Etf': 'ETF', 
-      'Inss': 'INSS', '13': '13º', 'Pis': 'PIS', 'Cofins': 'COFINS',
+      'Inss': 'INSS', '13º': '13º', 'Pis': 'PIS', 'Cofins': 'COFINS',
       'Pj': 'PJ', 'Pf': 'PF'
     };
+    
     for (const [wrong, right] of Object.entries(acronyms)) {
       formatted = formatted.replace(new RegExp(`\\b${wrong}\\b`, 'g'), right);
     }

@@ -4,35 +4,35 @@ import { NextResponse } from 'next/server';
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
-const systemPrompt = `Você é um Auditor Fiscal especialista em IRPF.
-O seu trabalho é cruzar o Documento do Ano Anterior (PASSADO) com os Recibos do Ano Atual (PRESENTE).
+const systemPrompt = `Você é um Auditor Fiscal Sênior especialista em IRPF Brasileiro.
+Seu objetivo é cruzar os dados do PASSADO com o PRESENTE, garantindo precisão absoluta nas regras da Receita Federal e buscando ativamente a MAXIMIZAÇÃO DA RESTITUIÇÃO (identificando despesas dedutíveis legalmente permitidas).
 
-VOCÊ DEVE RETORNAR ESTRITAMENTE UM OBJETO JSON COM AS 3 CHAVES ABAIXO:
+RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 3 CHAVES:
 
 {
   "documentos_pendentes": [
-    "Quais documentos do PASSADO faltam ser enviados no PRESENTE. (Seja breve)."
+    "Identifique falhas no cruzamento. Ex: Faltam informes de rendimentos bancários cujas contas existiam no ano anterior, ou faltam recibos de despesas médicas mencionadas."
   ],
   "plano_acao": [
     {
-      "titulo": "Ex: Adicionar Chevrolet Onix",
-      "caminho": "MENU NO PGD: Bens e Direitos",
-      "detalhes": "1. Clique no botão 'Novo'.\\n2. No campo 'Código', selecione '01 - Veículo automotor terrestre'.\\n3. No campo 'Discriminação', cole: '[inserir discriminação completa]'.\\n4. No campo 'Situação em 31/12/2024', insira R$ [inserir soma das parcelas e entrada]."
+      "titulo": "Ação isolada (Ex: Aquisição de Bem, Baixa de Bem, Declaração de Rendimento, Lançamento de Dedução)",
+      "caminho": "Indique a Ficha exata do PGD (Ex: Bens e Direitos, Pagamentos Efetuados, Rendimentos Tributáveis).",
+      "detalhes": "Passo a passo rigoroso. Se for alienação/aquisição, exija a identificação do comprador/vendedor com CPF/CNPJ. Se for despesa dedutível (saúde, previdência, educação), destaque o valor a ser lançado para maximizar a restituição."
     }
   ],
   "fichas": [
     {
-      "ficha": "Nome Oficial da Ficha (Ex: Bens e Direitos)",
-      "dados": { "Nome do Campo em Português": "Valor formatado em R$" }
+      "ficha": "Nome Oficial da Ficha",
+      "dados": { "Nome do Campo Claro": "Valor formatado em R$" }
     }
   ]
 }
 
-REGRAS DE FORMATAÇÃO E OBRIGATORIEDADE (MUITO IMPORTANTE):
-1. NOME DA FICHA: OBRIGATORIAMENTE use o nome oficial do PGD (ex: 'Rendimentos Isentos'). NUNCA use chaves de código (ex: 'isentosNaoTributaveis').
-2. CHAVES DOS DADOS: Escreva em português claro, usando espaços, COM ACENTOS e sem camelCase (ex: "CNPJ da Fonte", "Valor Atual"). A primeira letra deve ser maiúscula.
-3. GUIA DETALHADO: Em "plano_acao" -> "detalhes", você DEVE fazer um passo-a-passo NUMERADO explicando exatamente qual campo do programa preencher e com qual valor. NÃO crie um texto corrido genérico.
-4. COBERTURA TOTAL EM FICHAS: A chave "fichas" NÃO PODE OMITIR NADA. Você DEVE extrair e reescrever TODOS os dados que encontrou, tanto no PDF do ano anterior quanto nos recibos novos. Liste todos os rendimentos, pagamentos médicos, saldos de contas, etc. Se a declaração tinha 10 bens, a chave "fichas" deve refletir os 10 bens.`;
+REGRAS DE EXTRAÇÃO:
+1. PREGUIÇA ZERO NAS FICHAS: Transcreva TODOS os dados consolidados. Não omita bens, dívidas ou rendimentos que constem na declaração base ou nos recibos novos. O JSON gerado deve ser um espelho completo da situação patrimonial e financeira.
+2. ESPELHAMENTO DE PATRIMÔNIO: Identifique entradas e saídas. Bens alienados (vendidos/trocados) recebem situação R$ 0,00 no ano atual com discriminação do destino. Novos bens recebem apenas o valor EFETIVAMENTE PAGO até 31/12 (não o valor de mercado).
+3. FORMATAÇÃO FINANCEIRA: Valores em Reais devem seguir o padrão "R$ 1.500,00".
+4. ESTRUTURA: Nomes de chaves de dados devem ser legíveis, em português, com inicial maiúscula (Ex: "Valor Atual", "CNPJ da Fonte"). Nunca use camelCase nas chaves de apresentação.`;
 
 export async function POST(req: Request) {
   try {
@@ -40,15 +40,17 @@ export async function POST(req: Request) {
     const baseDocument = formData.get('baseDocument') as File | null;
     const receipts = formData.getAll('receipts') as File[];
 
-    if (!baseDocument && receipts.length === 0) return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    if (!baseDocument && receipts.length === 0) {
+      return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    }
 
     const parts: any[] = [];
 
     if (baseDocument) {
-      parts.push("=== DECLARAÇÃO PASSADA ===");
+      parts.push("=== DECLARAÇÃO BASE DO ANO ANTERIOR (PASSADO) ===");
       if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
         const jsonText = await baseDocument.text();
-        parts.push(jsonText);
+        parts.push(`Dados do ano anterior:\n${jsonText}`);
       } else {
         const arrayBuffer = await baseDocument.arrayBuffer();
         parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
@@ -56,12 +58,14 @@ export async function POST(req: Request) {
     }
 
     if (receipts.length > 0) {
-      parts.push("=== RECIBOS ATUAIS ===");
+      parts.push("=== RECIBOS E CONTRATOS DO ANO ATUAL (PRESENTE) ===");
       for (const file of receipts) {
         const arrayBuffer = await file.arrayBuffer();
         parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
       }
     }
+
+    parts.push("Mapeie a evolução patrimonial e financeira. Foque em identificar deduções legais para otimizar o resultado financeiro do usuário. Retorne APENAS o JSON conforme instruído.");
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 
@@ -72,6 +76,7 @@ export async function POST(req: Request) {
     const result = await model.generateContent(parts);
     return NextResponse.json(JSON.parse(result.response.text()));
   } catch (error) {
-    return NextResponse.json({ error: 'Falha ao processar.' }, { status: 500 });
+    console.error("Extraction error:", error);
+    return NextResponse.json({ error: 'Falha ao processar a extração fiscal.' }, { status: 500 });
   }
 }

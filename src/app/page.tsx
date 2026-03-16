@@ -6,20 +6,22 @@ type Message = { role: 'user' | 'assistant'; content: string };
 type Task = { titulo: string; caminho: string; detalhes: string };
 type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
 
+// CORREÇÃO: Renderização de Markdown segura e sem espaços indesejados
 const FormattedText = ({ text }: { text: string }) => {
   return (
     <div className="space-y-3">
       {text.split('\n').map((line, i) => {
         if (!line.trim()) return null;
+        
+        // Transforma **texto** em <strong>texto</strong> de forma limpa
+        const htmlLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-neutral-900 dark:text-white">$1</strong>');
+        
         return (
-          <p key={i} className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-            {line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={j} className="font-semibold text-neutral-900 dark:text-white bg-neutral-200/50 dark:bg-neutral-800/50 px-1 rounded">{part.slice(2, -2)}</strong>;
-              }
-              return <span key={j}>{part}</span>;
-            })}
-          </p>
+          <p 
+            key={i} 
+            className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300"
+            dangerouslySetInnerHTML={{ __html: htmlLine }}
+          />
         );
       })}
     </div>
@@ -79,7 +81,7 @@ export default function Home() {
       
       if (data.plano_acao || data.fichas) {
         setResult(data as ExtractedData);
-        setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus arquivos. O plano de ação está no menu lateral. Pode **clicar nas tarefas** para ver o passo a passo exato, ou fazer uma pergunta aqui.' }]);
+        setChatMessages([{ role: 'assistant', content: 'Olá! Já analisei os seus arquivos com base nas **novas regras de 2026**. O plano de ação está no menu lateral. Pode clicar nas tarefas para ver o passo a passo exato, ou fazer uma pergunta aqui.' }]);
       } else {
         setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] });
       }
@@ -128,27 +130,19 @@ export default function Home() {
     } catch (err) { alert("O navegador bloqueou a cópia."); }
   };
 
-  // CORREÇÃO CRÍTICA: Capitalização (Maiúsculas/Minúsculas) sem quebrar caracteres acentuados
   const formatLabel = (key: string) => {
-    // Substitui underscores por espaços e quebra possíveis camelCases herdados
     let formatted = key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
-    
-    // Capitaliza apenas a primeira letra de cada palavra (respeitando acentos via locale)
     formatted = formatted.toLowerCase().split(' ').map(word => {
         const doNotCapitalize = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os', 'em', 'por', 'para', 'com'];
-        if (doNotCapitalize.includes(word) && word !== formatted.toLowerCase().split(' ')[0]) {
-            return word;
-        }
+        if (doNotCapitalize.includes(word) && word !== formatted.toLowerCase().split(' ')[0]) return word;
         return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
     
     const acronyms: { [key: string]: string } = {
       'Cpf': 'CPF', 'Cnpj': 'CNPJ', 'Irrf': 'IRRF', 'Irpf': 'IRPF',
       'Darf': 'DARF', 'B3': 'B3', 'Fii': 'FII', 'Etf': 'ETF', 
-      'Inss': 'INSS', '13º': '13º', 'Pis': 'PIS', 'Cofins': 'COFINS',
-      'Pj': 'PJ', 'Pf': 'PF'
+      'Inss': 'INSS', '13º': '13º', 'Pis': 'PIS', 'Cofins': 'COFINS', 'Pj': 'PJ', 'Pf': 'PF'
     };
-    
     for (const [wrong, right] of Object.entries(acronyms)) {
       formatted = formatted.replace(new RegExp(`\\b${wrong}\\b`, 'g'), right);
     }
@@ -160,7 +154,6 @@ export default function Home() {
   };
 
   const dismissDoc = (index: number) => setDismissedDocs(prev => [...prev, index]);
-
   const visiblePendingDocs = result?.documentos_pendentes?.filter((_, i) => !dismissedDocs.includes(i)) || [];
 
   return (
@@ -252,23 +245,23 @@ export default function Home() {
         {result && (result.plano_acao || (result.fichas && result.fichas.length > 0)) && (
           <div className="animate-slide-up space-y-6 w-full">
             
-            {/* Alerta de Documentos Pendentes */}
+            {/* CORREÇÃO: Alerta amarelo com contraste lapidado para Light e Dark Mode */}
             {visiblePendingDocs.length > 0 && (
-              <div className="bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-200/50 dark:border-yellow-800/30 p-4 rounded-xl flex items-start gap-3">
-                <div className="mt-1 text-yellow-600 dark:text-yellow-500 shrink-0">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 p-4 rounded-xl flex items-start gap-3">
+                <div className="mt-1 text-amber-600 dark:text-amber-500 shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-medium text-sm text-yellow-800 dark:text-yellow-400">Atenção: Possíveis documentos em falta</h3>
-                  <div className="mt-2 space-y-2">
+                  <h3 className="font-semibold text-sm text-amber-800 dark:text-amber-400">Atenção: Possíveis documentos em falta</h3>
+                  <div className="mt-3 space-y-2">
                     {result.documentos_pendentes.map((doc, idx) => {
                       if (dismissedDocs.includes(idx)) return null;
                       return (
-                        <div key={idx} className="flex justify-between items-center gap-3 bg-white/60 dark:bg-neutral-900/40 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/20">
-                          <span className="text-xs text-yellow-900 dark:text-yellow-300 font-medium">{doc}</span>
+                        <div key={idx} className="flex justify-between items-center gap-3 bg-white/80 dark:bg-neutral-900/50 px-3 py-2.5 rounded-lg border border-amber-100 dark:border-amber-800/40 shadow-sm">
+                          <span className="text-xs text-amber-900 dark:text-amber-200 font-medium">{doc}</span>
                           <button 
                             onClick={() => dismissDoc(idx)}
-                            className="p-1 text-yellow-500 hover:text-yellow-700 dark:text-yellow-600 dark:hover:text-yellow-400 bg-yellow-100/50 dark:bg-yellow-800/30 rounded-md transition-colors shrink-0"
+                            className="p-1.5 text-amber-500 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-300 bg-amber-100/50 dark:bg-amber-800/30 rounded-md transition-colors shrink-0"
                             title="Remover aviso"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -363,7 +356,8 @@ export default function Home() {
                       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                         {chatMessages.map((msg, i) => (
                           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-tr-sm' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
+                            {/* CORREÇÃO: Contraste do Chat. User é sempre Escuro no Light, Branco no Dark. */}
+                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900 rounded-tr-sm' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 rounded-tl-sm'}`}>
                               <FormattedText text={msg.content} />
                             </div>
                           </div>

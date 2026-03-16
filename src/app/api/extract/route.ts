@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
-const systemPrompt = `Você é um Auditor Fiscal Sênior especialista em IRPF Brasileiro.
-Seu objetivo é cruzar os dados do PASSADO com o PRESENTE, garantindo precisão absoluta nas regras da Receita Federal e buscando ativamente a MAXIMIZAÇÃO DA RESTITUIÇÃO (identificando despesas dedutíveis legalmente permitidas).
+const systemPrompt = `Você é um Auditor Fiscal Sênior especialista no IRPF 2026 (Ano-Calendário 2025).
+Seu objetivo é cruzar os dados do PASSADO com o PRESENTE, garantindo precisão nas novas regras da Receita Federal (ex: limite de bens de R$ 800 mil, Cashback IRPF) e buscando ativamente a MAXIMIZAÇÃO DA RESTITUIÇÃO.
 
 RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 3 CHAVES:
 
@@ -15,9 +15,9 @@ RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 3 CHAVES:
   ],
   "plano_acao": [
     {
-      "titulo": "Ação isolada (Ex: Aquisição de Bem, Baixa de Bem, Declaração de Rendimento, Lançamento de Dedução)",
-      "caminho": "Indique a Ficha exata do PGD (Ex: Bens e Direitos, Pagamentos Efetuados, Rendimentos Tributáveis).",
-      "detalhes": "Passo a passo rigoroso. Se for alienação/aquisição, exija a identificação do comprador/vendedor com CPF/CNPJ. Se for despesa dedutível (saúde, previdência, educação), destaque o valor a ser lançado para maximizar a restituição."
+      "titulo": "Ação isolada (Ex: Adicionar Chevrolet Onix)",
+      "caminho": "Indique a Ficha exata do PGD.",
+      "detalhes": "OBRIGATÓRIO: Faça um passo a passo NUMERADO (1., 2., 3.) explicando onde clicar e o que preencher. Não resuma. Seja extremamente detalhista nos campos e valores."
     }
   ],
   "fichas": [
@@ -29,10 +29,9 @@ RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 3 CHAVES:
 }
 
 REGRAS DE EXTRAÇÃO:
-1. PREGUIÇA ZERO NAS FICHAS: Transcreva TODOS os dados consolidados. Não omita bens, dívidas ou rendimentos que constem na declaração base ou nos recibos novos. O JSON gerado deve ser um espelho completo da situação patrimonial e financeira.
-2. ESPELHAMENTO DE PATRIMÔNIO: Identifique entradas e saídas. Bens alienados (vendidos/trocados) recebem situação R$ 0,00 no ano atual com discriminação do destino. Novos bens recebem apenas o valor EFETIVAMENTE PAGO até 31/12 (não o valor de mercado).
-3. FORMATAÇÃO FINANCEIRA: Valores em Reais devem seguir o padrão "R$ 1.500,00".
-4. ESTRUTURA: Nomes de chaves de dados devem ser legíveis, em português, com inicial maiúscula (Ex: "Valor Atual", "CNPJ da Fonte"). Nunca use camelCase nas chaves de apresentação.`;
+1. PREGUIÇA ZERO NAS FICHAS: Transcreva TODOS os dados consolidados. Não omita bens, dívidas ou rendimentos que constem na declaração base ou nos recibos novos. O JSON gerado deve ser um espelho completo.
+2. ESPELHAMENTO DE PATRIMÔNIO: Identifique entradas e saídas. Bens alienados recebem situação R$ 0,00 no ano atual. Novos bens recebem apenas o valor EFETIVAMENTE PAGO até 31/12.
+3. FORMATAÇÃO: Valores em Reais devem seguir o padrão "R$ 1.500,00". Chaves de dados devem ser legíveis, em português, com inicial maiúscula. Nunca use camelCase nas chaves.`;
 
 export async function POST(req: Request) {
   try {
@@ -65,7 +64,7 @@ export async function POST(req: Request) {
       }
     }
 
-    parts.push("Mapeie a evolução patrimonial e financeira. Foque em identificar deduções legais para otimizar o resultado financeiro do usuário. Retorne APENAS o JSON conforme instruído.");
+    parts.push("Mapeie a evolução patrimonial. Foque em identificar deduções legais para otimizar o resultado financeiro (Cashback IRPF). Retorne APENAS o JSON conforme instruído.");
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview', 

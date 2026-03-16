@@ -15,10 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Ignorado' });
     }
 
-    // 1. Google (Embeddings) - Usando o modelo atualizado que não dá 404
+    // 1. Google (Embeddings) - Trocando para o modelo universal 'embedding-001'
     let embedding;
     try {
-      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+      const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
       const result = await embeddingModel.embedContent(chunk);
       embedding = result.embedding.values;
     } catch (e: any) {

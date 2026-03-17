@@ -23,32 +23,30 @@ export async function POST(req: Request) {
       match_count: 5 
     });
 
-    // CORREÇÃO 1: Formatação da Base de Dados para a IA (Removido o [Regra X])
+    // CORREÇÃO 1: Fim das frases cortadas. Passamos os trechos puros e delimitados.
     let ragContext = "";
     if (documents && documents.length > 0) {
-      ragContext = "DOCUMENTAÇÃO OFICIAL DA RECEITA FEDERAL (BASE DE CONHECIMENTO):\n";
-      documents.forEach((doc: any) => {
-        // Pega a primeira linha do documento (que geralmente é o título/nome do arquivo que você enviou) para servir de nome da fonte
-        const sourceName = doc.content.split('\n')[0].substring(0, 60).replace(/[^a-zA-Z0-9 À-ÿ]/g, '').trim();
-        ragContext += `[Documento: ${sourceName}]\nConteúdo: ${doc.content}\n\n`;
+      ragContext = "TRECHOS RECUPERADOS DA BASE DE CONHECIMENTO OFICIAL:\n";
+      documents.forEach((doc: any, index: number) => {
+        ragContext += `--- INÍCIO DO TRECHO ${index + 1} ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
       });
     } else {
       ragContext = "Nenhuma regra específica encontrada no manual oficial para esta pergunta exata.";
     }
 
-    // CORREÇÃO 2: Prompt Implacável (Sem saudações, fontes reais e sem asteriscos)
+    // CORREÇÃO 2: Instruções militares para a IA não se confundir
     const systemInstruction = `Você é o IRPF Copilot, um Consultor Tributário Sênior. 
 
 DADOS REAIS DO USUÁRIO:
 ${JSON.stringify(contextData)}
 
-BASE DE CONHECIMENTO (Manuais e Novas Regras 2026):
+BASE DE CONHECIMENTO (Manuais, Leis e Regras do IRPF):
 ${ragContext}
 
-REGRAS DE POSTURA (OBRIGATÓRIO):
-1. DIRETO AO PONTO: NUNCA inicie a resposta com saudações (ex: "Olá!", "Como seu consultor..."). Comece a resposta imediatamente com a solução ou a análise prática.
-2. CITAÇÃO DE FONTES: Você DEVE embasar suas afirmações. No final do parágrafo, escreva a fonte exatamente assim: Fonte: Nome do Documento. NUNCA use asteriscos, itálico ou parênteses em volta da palavra Fonte. Exemplo correto: Fonte: Instrução Normativa 2240.
-3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para separar seções importantes. Use "* " para criar tópicos. Destaque valores em **negrito**. Parágrafos curtos.
+REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
+1. DIRETO AO PONTO: É ESTRITAMENTE PROIBIDO iniciar a resposta com saudações ("Olá", "Como seu consultor", "Bem-vindo"). Comece a primeira linha já entregando a solução ou a análise.
+2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma (Ex: IN RFB 2240, Lei 14.754, Guia de Renda Variável). No final da explicação, escreva de forma limpa: Fonte: [Nome da Lei ou Manual que você identificou]. Se o trecho não contiver um nome claro de lei ou manual, escreva apenas: Fonte: Diretrizes da Receita Federal. NUNCA cite partes de frases cortadas como fonte.
+3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para criar uma linha divisória elegante entre seções diferentes. Use "* " para criar tópicos. Destaque valores em **negrito**. Parágrafos curtos de no máximo 3 linhas.
 4. PASSO A PASSO: Para ações no sistema da Receita, crie listas numeradas indicando a ficha e o campo.`;
 
     const model = genAI.getGenerativeModel({

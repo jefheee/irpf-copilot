@@ -23,17 +23,21 @@ export async function POST(req: Request) {
       match_count: 5 
     });
 
+    // CORREÇÃO 1: Formatação da Base de Dados para a IA (Removido o [Regra X])
     let ragContext = "";
     if (documents && documents.length > 0) {
-      ragContext = "REGRAS OFICIAIS E ATUALIZAÇÕES IRPF 2026:\n";
-      documents.forEach((doc: any, index: number) => {
-        ragContext += `[Regra ${index + 1}]: ${doc.content}\n\n`;
+      ragContext = "DOCUMENTAÇÃO OFICIAL DA RECEITA FEDERAL (BASE DE CONHECIMENTO):\n";
+      documents.forEach((doc: any) => {
+        // Pega a primeira linha do documento (que geralmente é o título/nome do arquivo que você enviou) para servir de nome da fonte
+        const sourceName = doc.content.split('\n')[0].substring(0, 60).replace(/[^a-zA-Z0-9 À-ÿ]/g, '').trim();
+        ragContext += `[Documento: ${sourceName}]\nConteúdo: ${doc.content}\n\n`;
       });
     } else {
       ragContext = "Nenhuma regra específica encontrada no manual oficial para esta pergunta exata.";
     }
 
-    const systemInstruction = `Você é o IRPF Copilot, um Consultor Tributário Sênior (Foco em IRPF 2026/Ano-Calendário 2025). 
+    // CORREÇÃO 2: Prompt Implacável (Sem saudações, fontes reais e sem asteriscos)
+    const systemInstruction = `Você é o IRPF Copilot, um Consultor Tributário Sênior. 
 
 DADOS REAIS DO USUÁRIO:
 ${JSON.stringify(contextData)}
@@ -41,12 +45,11 @@ ${JSON.stringify(contextData)}
 BASE DE CONHECIMENTO (Manuais e Novas Regras 2026):
 ${ragContext}
 
-REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO (CRÍTICO PARA SEGURANÇA JURÍDICA):
-1. MAXIMIZAR CASHBACK: Se a pergunta for sobre restituição, instrua ativamente o usuário a buscar recibos médicos/educação não inseridos.
-2. PASSO A PASSO: Quando instruir o usuário a fazer algo no PGD, DEVE criar uma lista numerada (1., 2., 3.) indicando a ficha e o campo exato.
-3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "* " para criar tópicos. Destaque valores em **negrito**.
-4. ATUALIZAÇÃO 2026: Responda usando os novos limites (ex: Bens até R$ 800 mil, Bolsa R$ 40 mil).
-5. CITAÇÃO DE FONTES (GUARDRAIL): É OBRIGATÓRIO embasar qualquer afirmação fiscal referenciando a regra da Base de Conhecimento. No final do seu conselho, adicione de forma sutil: "(Fonte: [Regra X])" referenciando o índice exato da regra. Se não houver regra na base para responder, você DEVE dizer: "Aviso: Não encontrei base legal nos manuais fornecidos para esta situação. Recomendo consultar um contador."`;
+REGRAS DE POSTURA (OBRIGATÓRIO):
+1. DIRETO AO PONTO: NUNCA inicie a resposta com saudações (ex: "Olá!", "Como seu consultor..."). Comece a resposta imediatamente com a solução ou a análise prática.
+2. CITAÇÃO DE FONTES: Você DEVE embasar suas afirmações. No final do parágrafo, escreva a fonte exatamente assim: Fonte: Nome do Documento. NUNCA use asteriscos, itálico ou parênteses em volta da palavra Fonte. Exemplo correto: Fonte: Instrução Normativa 2240.
+3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para separar seções importantes. Use "* " para criar tópicos. Destaque valores em **negrito**. Parágrafos curtos.
+4. PASSO A PASSO: Para ações no sistema da Receita, crie listas numeradas indicando a ficha e o campo.`;
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',

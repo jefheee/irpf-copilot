@@ -12,15 +12,20 @@ const FormattedText = ({ text }: { text: string }) => {
       {text.split('\n').map((line, i) => {
         const trimmedLine = line.trim();
         if (!trimmedLine) return null;
+
+        // CORREÇÃO: Transforma "---" numa linha divisória elegante
+        if (trimmedLine === '---') {
+          return <hr key={i} className="my-4 border-t border-neutral-200 dark:border-zinc-700/50" />;
+        }
         
         if (trimmedLine.startsWith('###')) {
-          return <h4 key={i} className="text-base font-bold text-neutral-900 dark:text-white mt-4 mb-2">{trimmedLine.replace(/^#+\s*/, '')}</h4>;
+          return <h4 key={i} className="text-base font-bold text-neutral-900 dark:text-white mt-5 mb-2">{trimmedLine.replace(/^#+\s*/, '')}</h4>;
         }
 
         if (trimmedLine.startsWith('* ')) {
           const htmlLine = trimmedLine.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-neutral-900 dark:text-white">$1</strong>');
           return (
-            <div key={i} className="flex items-start gap-2 ml-2">
+            <div key={i} className="flex items-start gap-2 ml-2 mt-1">
               <span className="text-blue-500 mt-1.5 text-xs">✦</span>
               <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300" dangerouslySetInnerHTML={{ __html: htmlLine }} />
             </div>

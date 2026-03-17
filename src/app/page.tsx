@@ -76,6 +76,7 @@ export default function Home() {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState(''); // O input agora começa estritamente vazio
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isVisionExpanded, setIsVisionExpanded] = useState(false);
   
   const [dismissedDocs, setDismissedDocs] = useState<number[]>([]);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -142,6 +143,33 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: newMessage.content, contextData: result })
+      });
+      const data = await response.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, ocorreu um erro.", isNew: true }]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "Falha de conexão. Tente novamente.", isNew: true }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  // NOVA FUNÇÃO: Pergunta para a IA sobre a Visão de Futuro
+  const handleAskVision = async () => {
+    if (!result?.otimizacao_futura) return;
+    setActiveTab('assistant');
+    
+    // Cria um prompt elegante e rico em contexto para a IA
+    const prompt = `Pode explicar-me em detalhe como funciona esta otimização financeira que me sugeriu e qual o passo a passo prático para a implementar?\n\nSua sugestão foi: "${result.otimizacao_futura}"`;
+    
+    const newMessage: Message = { role: 'user', content: prompt };
+    setChatMessages(prev => [...prev, newMessage]);
+    setIsChatLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt, contextData: result })
       });
       const data = await response.json();
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Desculpe, ocorreu um erro.", isNew: true }]);
@@ -371,16 +399,34 @@ export default function Home() {
               )}
             </div>
 
-            {/* OTIMIZAÇÃO FUTURA (WEALTH PLANNING) - Fixado no fundo da Sidebar */}
+{/* OTIMIZAÇÃO FUTURA (WEALTH PLANNING) - Expansível */}
             {result.otimizacao_futura && (
-              <div className="p-5 border-t border-neutral-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 shadow-inner flex-shrink-0">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                  Visão de Futuro
-                </h3>
-                <p className="text-sm text-emerald-900 dark:text-emerald-100/80 leading-relaxed font-medium">
-                  {result.otimizacao_futura}
-                </p>
+              <div className="border-t border-neutral-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 shadow-inner flex-shrink-0 flex flex-col transition-all duration-300">
+                <button
+                  onClick={() => setIsVisionExpanded(!isVisionExpanded)}
+                  className="p-4 w-full flex items-center justify-between text-left hover:bg-emerald-100/50 dark:hover:bg-emerald-800/30 transition-colors"
+                >
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                    Visão de Futuro
+                  </h3>
+                  <svg className={`w-4 h-4 text-emerald-600 transition-transform duration-300 ${isVisionExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+
+                {isVisionExpanded && (
+                  <div className="px-4 pb-4 animate-fade-in space-y-4">
+                    <p className="text-sm text-emerald-900 dark:text-emerald-100/80 leading-relaxed font-medium">
+                      {result.otimizacao_futura}
+                    </p>
+                    <button
+                      onClick={handleAskVision}
+                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                      Pedir passo a passo à IA
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </aside>

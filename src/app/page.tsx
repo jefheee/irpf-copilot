@@ -336,26 +336,13 @@ export default function Home() {
         </div>
       )}
 
-      {/* ESTADO 2: WORKSPACE (SIDEBAR + CHAT/DADOS) */}
-      {result && (
+{/* ESTADO 2: WORKSPACE (SIDEBAR + CHAT/DADOS) */}
+{result && (
         <div className="flex-1 flex overflow-hidden bg-neutral-50 dark:bg-zinc-950 animate-fade-in w-full max-w-[1400px] mx-auto border-x border-neutral-200 dark:border-zinc-800 shadow-2xl">
           
-          {/* NOVO: OTIMIZAÇÃO FUTURA (WEALTH PLANNING) */}
-          {result.otimizacao_futura && (
-              <div className="p-5 border-t border-neutral-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 shadow-inner">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                  Visão de Futuro
-                </h3>
-                <p className="text-sm text-emerald-900 dark:text-emerald-100/80 leading-relaxed font-medium">
-                  {result.otimizacao_futura}
-                </p>
-              </div>
-            )}
-
-          {/* SIDEBAR ESQUERDA: PLANO DE AÇÃO (Estilo Menu do Canva/ChatGPT) */}
+          {/* SIDEBAR ESQUERDA: PLANO DE AÇÃO E VISÃO DE FUTURO */}
           <aside className="w-80 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-neutral-200 dark:border-zinc-800 hidden md:flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-            <div className="p-5 border-b border-neutral-100 dark:border-zinc-800/50">
+            <div className="p-5 border-b border-neutral-100 dark:border-zinc-800/50 flex-shrink-0">
               <h2 className="font-bold text-xs uppercase tracking-widest text-neutral-500 dark:text-zinc-400 flex items-center gap-2">
                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                 Ações Pendentes
@@ -383,6 +370,19 @@ export default function Home() {
                 <p className="text-neutral-400 text-sm italic text-center mt-10">Tudo preenchido!</p>
               )}
             </div>
+
+            {/* OTIMIZAÇÃO FUTURA (WEALTH PLANNING) - Fixado no fundo da Sidebar */}
+            {result.otimizacao_futura && (
+              <div className="p-5 border-t border-neutral-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 shadow-inner flex-shrink-0">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                  Visão de Futuro
+                </h3>
+                <p className="text-sm text-emerald-900 dark:text-emerald-100/80 leading-relaxed font-medium">
+                  {result.otimizacao_futura}
+                </p>
+              </div>
+            )}
           </aside>
 
           {/* ÁREA PRINCIPAL DIREITA (CHAT ou DADOS) */}
@@ -396,11 +396,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* CONTEÚDO DO CHAT (O "display: hidden" garante que a IA não esquece a digitação) */}
+            {/* CONTEÚDO DO CHAT */}
             <div className={`flex-1 flex flex-col w-full h-full relative ${activeTab === 'assistant' ? 'flex' : 'hidden'}`}>
               
-{/* O Chat em si COM AVATARES */}
-<div className="flex-1 overflow-y-auto px-4 md:px-10 pt-20 pb-32 space-y-6 custom-scrollbar scroll-smooth">
+              <div className="flex-1 overflow-y-auto px-4 md:px-10 pt-20 pb-32 space-y-6 custom-scrollbar scroll-smooth">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={`flex animate-message gap-3 ${msg.role === 'user' ? 'justify-end flex-row-reverse' : 'justify-start'}`}>
                     
@@ -435,13 +434,12 @@ export default function Home() {
                 <div ref={chatEndRef} className="h-4" />
               </div>
 
-              {/* INPUT INFERIOR FLUTUANTE ESTILO CANVA/CHATGPT */}
+              {/* INPUT INFERIOR FLUTUANTE */}
               <div className="absolute bottom-6 left-4 right-4 md:left-10 md:right-10 z-20">
                 <div className="bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 rounded-full shadow-2xl p-2 flex items-center gap-3 relative focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                   <div className="pl-4 text-blue-500">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
                   </div>
-                  {/* BUG CORRIGIDO: value={} e placeholder="" estão estritamente separados agora */}
                   <input 
                     type="text" 
                     value={chatInput}

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 
 type Message = { role: 'user' | 'assistant'; content: string; isNew?: boolean };
 type Task = { titulo: string; caminho: string; detalhes: string };
-type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[] };
+type ExtractedData = { documentos_pendentes: string[]; plano_acao: Task[]; fichas: any[]; otimizacao_futura?: string };
 
 const FormattedText = ({ text }: { text: string }) => {
   return (
@@ -340,6 +340,19 @@ export default function Home() {
       {result && (
         <div className="flex-1 flex overflow-hidden bg-neutral-50 dark:bg-zinc-950 animate-fade-in w-full max-w-[1400px] mx-auto border-x border-neutral-200 dark:border-zinc-800 shadow-2xl">
           
+          {/* NOVO: OTIMIZAÇÃO FUTURA (WEALTH PLANNING) */}
+          {result.otimizacao_futura && (
+              <div className="p-5 border-t border-neutral-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 shadow-inner">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                  Visão de Futuro
+                </h3>
+                <p className="text-sm text-emerald-900 dark:text-emerald-100/80 leading-relaxed font-medium">
+                  {result.otimizacao_futura}
+                </p>
+              </div>
+            )}
+
           {/* SIDEBAR ESQUERDA: PLANO DE AÇÃO (Estilo Menu do Canva/ChatGPT) */}
           <aside className="w-80 flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-neutral-200 dark:border-zinc-800 hidden md:flex flex-col z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
             <div className="p-5 border-b border-neutral-100 dark:border-zinc-800/50">

@@ -5,19 +5,19 @@ const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey!);
 
 const systemPrompt = `Você é um Auditor Fiscal Sênior especialista no IRPF 2026 (Ano-Calendário 2025).
-Sua missão é atuar como um motor de "Intelligent Document Processing" (IDP). Extraia dados de PDFs e imagens com precisão cirúrgica, focando em MAXIMIZAR A RESTITUIÇÃO e blindar o usuário contra a malha fina.
+Sua missão é atuar como um motor de "Intelligent Document Processing" (IDP). Extraia dados de PDFs e imagens com precisão cirúrgica, focando em MAXIMIZAR A RESTITUIÇÃO e blindar o usuário.
 
-RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 4 CHAVES:
+RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 4 CHAVES (Se não houver dados para uma chave, retorne OBRIGATORIAMENTE um array vazio []):
 
 {
   "documentos_pendentes": [
-    "Avisos críticos. Ex: 'Falta o CNPJ no recibo do dentista X', 'O recibo de farmácia Y não é dedutível e foi ignorado', 'Faltam os informes bancários'."
+    "Avisos críticos."
   ],
   "plano_acao": [
     {
-      "titulo": "Ação (Ex: Lançar Despesa Médica - Dr. Silva)",
-      "caminho": "Ficha: Pagamentos Efetuados > Código XX",
-      "detalhes": "1. Clique em 'Novo'.\\n2. Insira o CPF/CNPJ: 000.000.000-00.\\n3. No campo Valor, insira o total: R$ YY. (USE SEMPRE ESTE FORMATO DE LISTA COM QUEBRAS DE LINHA '\\n')."
+      "titulo": "Ação (Ex: Lançar Despesa Médica)",
+      "caminho": "Ficha",
+      "detalhes": "1. Passo\\n2. Passo"
     }
   ],
   "fichas": [
@@ -26,15 +26,15 @@ RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 4 CHAVES:
       "dados": { "Nome do Campo": "Valor" }
     }
   ],
-  "otimizacao_futura": "Uma dica proativa de planejamento financeiro/tributário para o próximo ano. Analise a renda e os gastos. Exemplo: sugerir abertura de previdência PGBL para reduzir a base de cálculo, guardar notas fiscais específicas, etc. Seja direto e mostre o impacto financeiro."
+  "otimizacao_futura": "Uma dica proativa de planejamento financeiro."
 }
 
-REGRAS DE AUDITORIA (CRÍTICO):
-1. CAÇA ÀS DEDUÇÕES: Vasculhe as imagens por despesas médicas, planos de saúde e educação. Extraia OBRIGATORIAMENTE o CNPJ/CPF do prestador.
-2. CONSOLIDAÇÃO INTELIGENTE: Se houver múltiplos recibos do mesmo prestador, SOME os valores e crie APENAS UM item no 'plano_acao' com o valor total.
-3. FILTRO DE MALHA FINA: Ignore despesas com farmácia, academia ou material escolar para o 'plano_acao', mas avise em 'documentos_pendentes' que estes não são dedutíveis.
-4. BENS FINANCIADOS: Para veículos ou imóveis financiados, instrua a declarar APENAS o valor pago no ano. Nunca o valor total.
-5. PLANEJAMENTO (NOVO): Utilize a chave 'otimizacao_futura' para entregar um conselho de alto valor que mude a vida financeira do usuário no próximo ano.`;
+REGRAS DE AUDITORIA:
+1. CAÇA ÀS DEDUÇÕES: Vasculhe as imagens por despesas. Extraia CNPJ/CPF.
+2. CONSOLIDAÇÃO: Se houver múltiplos recibos do mesmo prestador, SOME os valores num único card.
+3. FILTRO: Ignore farmácia, academia ou material escolar para o 'plano_acao', mas avise em 'documentos_pendentes'.
+4. BENS: Para veículos financiados, declare APENAS o valor pago no ano.
+5. PLANEJAMENTO: Utilize 'otimizacao_futura' para entregar um conselho de alto valor.`;
 
 export async function POST(req: Request) {
   try {
@@ -42,32 +42,57 @@ export async function POST(req: Request) {
     const baseDocument = formData.get('baseDocument') as File | null;
     const receipts = formData.getAll('receipts') as File[];
 
-    if (!baseDocument && receipts.length === 0) return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    if (!baseDocument && receipts.length === 0) {
+      return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    }
 
     const parts: any[] = [];
+
     if (baseDocument) {
       if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
-        parts.push(`=== PASSADO ===\n${await baseDocument.text()}`);
+        const jsonText = await baseDocument.text();
+        parts.push(`=== DECLARAÇÃO BASE ===\n${jsonText}`);
       } else {
-        const ab = await baseDocument.arrayBuffer();
-        parts.push({ inlineData: { data: Buffer.from(ab).toString('base64'), mimeType: baseDocument.type } });
+        const arrayBuffer = await baseDocument.arrayBuffer();
+        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
       }
     }
 
     if (receipts.length > 0) {
-      parts.push("=== PRESENTE ===");
+      parts.push("=== NOVOS RECIBOS ===");
       for (const file of receipts) {
-        const ab = await file.arrayBuffer();
-        parts.push({ inlineData: { data: Buffer.from(ab).toString('base64'), mimeType: file.type } });
+        const arrayBuffer = await file.arrayBuffer();
+        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
       }
     }
 
-    parts.push("Mapeie a evolução. No plano_acao, gere o passo a passo com QUEBRAS DE LINHA (\\n).");
+    parts.push("Mapeie a evolução patrimonial. Lembre-se: SE NÃO HOUVER AÇÕES, RETORNE 'plano_acao': [] COMO UM ARRAY VAZIO.");
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview', systemInstruction: systemPrompt, generationConfig: { temperature: 0, responseMimeType: 'application/json' }});
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3-flash-preview',
+      systemInstruction: systemPrompt,
+      generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+    });
+
     const result = await model.generateContent(parts);
-    return NextResponse.json(JSON.parse(result.response.text()));
-  } catch (error) {
-    return NextResponse.json({ error: 'Falha.' }, { status: 500 });
+    const textResponse = result.response.text();
+
+    // PROTEÇÃO 1: Limpeza Anti-Markdown (Remove blocos de código que a IA possa injetar)
+    const cleanJsonText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(cleanJsonText);
+
+    // PROTEÇÃO 2: Conversão Forçada de Tipos (Garante que o React nunca faça .map() numa string)
+    const safeResponse = {
+      documentos_pendentes: Array.isArray(parsedData.documentos_pendentes) ? parsedData.documentos_pendentes : [],
+      plano_acao: Array.isArray(parsedData.plano_acao) ? parsedData.plano_acao : [],
+      fichas: Array.isArray(parsedData.fichas) ? parsedData.fichas : [],
+      otimizacao_futura: typeof parsedData.otimizacao_futura === 'string' ? parsedData.otimizacao_futura : undefined
+    };
+
+    return NextResponse.json(safeResponse);
+
+  } catch (error: any) {
+    console.error("Extraction error:", error);
+    return NextResponse.json({ error: 'Falha ao processar a extração fiscal ou ao interpretar o JSON.' }, { status: 500 });
   }
 }

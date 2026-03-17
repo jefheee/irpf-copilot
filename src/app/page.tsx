@@ -114,18 +114,34 @@ export default function Home() {
       const response = await fetch('/api/extract', { method: 'POST', body: formData });
       const data = await response.json();
       
-      if (data.plano_acao || data.fichas) {
-        setResult(data as ExtractedData);
-        setChatMessages([{ 
-          role: 'assistant', 
-          content: 'Olá! Sou o seu Consultor Tributário Pessoal. 🎉\n\nJá analisei tudo o que me enviou e cruzei com as novas regras de 2026 da Receita Federal. Preparei o seu **Plano de Ação** ali no menu lateral para garantir a sua maior restituição possível.\n\nClique em qualquer tarefa para eu lhe mostrar exatamente onde clicar, ou pergunte-me qualquer dúvida!', 
-          isNew: true 
-        }]);
-      } else {
-        setResult({ documentos_pendentes: [], plano_acao: [], fichas: [] });
+      if (data.error) {
+        alert("Erro na auditoria: " + data.error);
+        setLoading(false);
+        return;
       }
+
+      // Agora temos a garantia matemática de que data é tipado de forma segura pelo Back-end
+      setResult(data as ExtractedData);
+      
+      // Ajuste dinâmico da conversa com base na existência de tarefas
+      let welcomeMessage = 'Olá! Sou o seu Consultor Tributário Pessoal. 🎉\n\nJá auditei todos os documentos que me enviou e cruzei com as regras da Receita Federal.';
+      
+      if (data.plano_acao && data.plano_acao.length > 0) {
+        welcomeMessage += '\n\nPreparei o seu **Plano de Ação** ali no menu lateral. Clique em qualquer tarefa para eu lhe dar o passo a passo de como preencher o PGD.';
+      } else {
+        welcomeMessage += '\n\nBoas notícias: **Não encontrei nenhuma nova ação obrigatória ou pendência de preenchimento** baseada nos documentos enviados hoje. A sua declaração base parece estruturalmente correta.';
+      }
+
+      welcomeMessage += '\n\nPergunte-me qualquer dúvida ou clique num card ao lado se precisar de explorar a Visão de Futuro!';
+
+      setChatMessages([{ 
+        role: 'assistant', 
+        content: welcomeMessage, 
+        isNew: true 
+      }]);
+      
     } catch (error) {
-      alert("Erro ao processar os arquivos.");
+      alert("Falha de comunicação com o servidor de extração.");
     } finally {
       setLoading(false);
     }

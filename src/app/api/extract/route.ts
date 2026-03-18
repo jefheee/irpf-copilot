@@ -81,10 +81,11 @@ export async function POST(req: Request) {
 
     // PROTEÇÃO 1: Limpeza Anti-Markdown (Remove blocos de código que a IA possa injetar)
     // PROTEÇÃO 1: Limpeza Anti-Markdown e Filtro de Caracteres de Controle
+ // PROTEÇÃO 1: Limpeza Anti-Markdown e Filtro de Caracteres de Controle
     const cleanJsonText = textResponse
       .replace(/```json/gi, '')
       .replace(/```/g, '')
-      .replace(/[\u0000-\u001F]+/g, ' ') // <-- ESTA É A MÁGICA: Transforma enters e tabs literais em espaços simples, salvando o parse!
+      .replace(/[\x00-\x1F]+/g, ' ') // <-- Mágica aqui: Usar \x bypassa o bug do Turbopack
       .trim();
 
     const parsedData = JSON.parse(cleanJsonText);

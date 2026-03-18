@@ -54,15 +54,15 @@ REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
 3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para criar uma linha divisória elegante. Use "* " para criar tópicos. Destaque valores em **negrito**.
 4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.`;
 
-    // Chamada ultra-rápida para o Groq usando o poderoso Llama 3 (70 bilhões de parâmetros)
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: message }
-      ],
-      model: "llama3-70b-8192", // Modelo de código aberto de altíssima performance
-      temperature: 0.1,
-    });
+// Chamada ultra-rápida para o Groq usando o modelo Llama 3.3
+const chatCompletion = await groq.chat.completions.create({
+  messages: [
+    { role: "system", content: systemInstruction },
+    { role: "user", content: message }
+  ],
+  model: "llama-3.3-70b-versatile", // Modelo substituto validado
+  temperature: 0.1,
+});
 
     return NextResponse.json({ reply: chatCompletion.choices[0]?.message?.content || "" });
 

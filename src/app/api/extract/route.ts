@@ -29,14 +29,13 @@ RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 4 CHAVES (Se não houver dados par
   "otimizacao_futura": "Uma dica proativa de planejamento financeiro."
 }
 
-// Adicione a regra 6 no final das REGRAS DE AUDITORIA:
 REGRAS DE AUDITORIA:
 1. CAÇA ÀS DEDUÇÕES: Vasculhe as imagens por despesas. Extraia CNPJ/CPF.
 2. CONSOLIDAÇÃO: Se houver múltiplos recibos do mesmo prestador, SOME os valores num único card.
 3. FILTRO: Ignore farmácia, academia ou material escolar para o 'plano_acao', mas avise em 'documentos_pendentes'.
 4. BENS: Para veículos financiados, declare APENAS o valor pago no ano.
 5. PLANEJAMENTO: Utilize 'otimizacao_futura' para entregar um conselho de alto valor.
-6. SINTAXE ESTRITA (CRÍTICO): NUNCA utilize aspas duplas (") ou quebras de linha literais (Enter) dentro dos textos gerados. Utilize apenas aspas simples (') se precisar isolar uma palavra.
+6. SINTAXE ESTRITA (CRÍTICO): NUNCA utilize aspas duplas (") ou quebras de linha literais (Enter) dentro dos textos gerados. Utilize apenas aspas simples (') se precisar isolar uma palavra.`;
 
 export async function POST(req: Request) {
   try {
@@ -79,9 +78,7 @@ export async function POST(req: Request) {
     const result = await model.generateContent(parts);
     const textResponse = result.response.text();
 
-    // PROTEÇÃO 1: Limpeza Anti-Markdown (Remove blocos de código que a IA possa injetar)
     // PROTEÇÃO 1: Limpeza Anti-Markdown e Filtro de Caracteres de Controle
- // PROTEÇÃO 1: Limpeza Anti-Markdown e Filtro de Caracteres de Controle
     const cleanJsonText = textResponse
       .replace(/```json/gi, '')
       .replace(/```/g, '')

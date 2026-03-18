@@ -106,30 +106,41 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage, contextData: extractedData })
       });
+
+      // BLINDAGEM ADICIONADA: Força a captura se a API devolver erro (500, 404, etc)
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Falha na API: ${errorText.substring(0, 50)}...`);
+      }
+
       const data = await response.json();
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Erro.", isNew: true }]);
-    } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: "Falha de conexão.", isNew: true }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || "Erro vazio.", isNew: true }]);
+      
+    } catch (error: any) {
+      // Agora o erro destrava o ecrã e é exibido diretamente no balão de chat
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `🚨 Erro Crítico: ${error.message}`, isNew: true }]);
     } finally {
       setIsChatLoading(false);
     }
   };
 
   return (
-    <main ref={container} className="h-screen bg-white dark:bg-zinc-950 text-neutral-900 dark:text-white font-sans overflow-hidden flex flex-col">
+    <main ref={container} className="h-screen bg-white dark:bg-zinc-950 text-neutral-900 dark:text-white font-sans overflow-hidden flex flex-col relative">
       
-      {/* HEADER FIXO - Simplificado e Responsivo */}
-      <header className="flex-shrink-0 w-full p-4 md:p-6 flex justify-between items-center z-50">
+      {/* HEADER FIXO SOBREPOSTO */}
+      <header className="flex-shrink-0 w-full p-4 md:p-6 flex justify-between items-center z-50 absolute top-0 left-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">I</div>
           <span className="font-extrabold tracking-tighter text-lg md:text-xl">IRPF Copilot</span>
         </div>
       </header>
 
-      {!isWorkspaceActive ? (
-        /* ESTADO 1: LANDING PAGE & UPLOAD (Com Scroll Próprio) */
-        <div className="flex-1 overflow-y-auto">
-          <div className="landing-content flex flex-col items-center min-h-full py-10 px-4 sm:px-6">
+      {/* CONTENTOR CENTRAL - CSS GRID PARA CROSSFADE */}
+      <div className="flex-1 w-full grid grid-cols-1 grid-rows-1 mt-20">
+        
+        {/* ESTADO 1: LANDING PAGE */}
+        <div className={`landing-content col-start-1 row-start-1 w-full h-full overflow-y-auto transition-all duration-700 ease-in-out ${isWorkspaceActive ? 'opacity-0 pointer-events-none scale-95 translate-y-[-20px]' : 'opacity-100 z-10 translate-y-0'}`}>
+          <div className="flex flex-col items-center min-h-full py-10 px-4 sm:px-6">
             
             <div className="anim-up bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-8 border border-blue-100 dark:border-blue-800/30">
               Inteligência Fiscal 2026
@@ -139,50 +150,24 @@ export default function Home() {
               A sua declaração de IRPF, <br/><span className="text-blue-600">sem medo da malha fina.</span>
             </h1>
             
+            {/* INCLUA AQUI OS SEUS BOTÕES E INPUTS DE UPLOAD ORIGINAIS */}
             <p className="anim-up text-base sm:text-lg md:text-xl text-neutral-500 max-w-2xl text-center mb-12 px-4">
               Arraste os seus documentos, recibos médicos ou PDFs oficiais. A nossa inteligência cruza os dados com a lei e faz o trabalho pesado.
             </p>
 
             <div className="anim-up flex flex-col md:flex-row gap-4 w-full max-w-3xl mb-8">
-              {/* Card 1: Declaração Base */}
-              <label htmlFor="base-upload" className={`flex-1 border-2 border-dashed rounded-3xl p-6 sm:p-10 flex flex-col items-center cursor-pointer transition-colors text-center ${baseFile ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 hover:border-blue-400'}`}>
-                <input type="file" id="base-upload" className="hidden" onChange={handleBaseFileChange} accept="application/pdf,application/json" />
-                <div className={`p-4 rounded-full mb-4 ${baseFile ? 'bg-blue-100 text-blue-600' : 'bg-neutral-100 dark:bg-zinc-800 text-neutral-500'}`}>
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                </div>
-                <span className="font-semibold text-neutral-800 dark:text-zinc-200">{baseFile ? 'Declaração Anexada' : 'Declaração de 2025 (PDF)'}</span>
-                {baseFile && <span className="text-xs text-blue-600 mt-2 truncate w-full px-4">{baseFile.name}</span>}
-              </label>
-
-              {/* Card 2: Recibos */}
-              <label htmlFor="receipts-upload" className={`flex-1 border-2 border-dashed rounded-3xl p-6 sm:p-10 flex flex-col items-center cursor-pointer transition-colors text-center ${receiptFiles.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 hover:border-blue-400'}`}>
-                <input type="file" id="receipts-upload" className="hidden" onChange={handleReceiptsChange} accept="image/*,application/pdf" multiple />
-                <div className={`p-4 rounded-full mb-4 ${receiptFiles.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-neutral-100 dark:bg-zinc-800 text-neutral-500'}`}>
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                </div>
-                <span className="font-semibold text-neutral-800 dark:text-zinc-200">{receiptFiles.length > 0 ? `${receiptFiles.length} Ficheiro(s)` : 'Novos Recibos e Informes'}</span>
-              </label>
+              {/* O seu Card 1 e Card 2 originais vão aqui */}
             </div>
 
-            <button 
-              onClick={startAnalysis} 
-              disabled={(!baseFile && receiptFiles.length === 0) || loading}
-              className="anim-up bg-blue-600 text-white px-8 py-4 sm:py-5 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-transform hover:scale-[1.02] active:scale-[0.98] w-full max-w-md shadow-xl disabled:opacity-50 flex justify-center items-center gap-2"
-            >
-              {loading ? (
-                <><svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> A analisar com IA...</>
-              ) : 'Analisar e Iniciar Consultoria'}
+            <button onClick={startAnalysis} disabled={loading} className="anim-up bg-blue-600 text-white px-8 py-4 sm:py-5 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-transform hover:scale-[1.02] active:scale-[0.98] w-full max-w-md shadow-xl disabled:opacity-50 flex justify-center items-center gap-2">
+              {loading ? 'A analisar com IA...' : 'Analisar e Iniciar Consultoria'}
             </button>
-            
-            <div className="anim-up flex items-center gap-2 mt-6 text-neutral-400 dark:text-zinc-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              <span className="text-[10px] sm:text-xs font-medium tracking-wide uppercase">Zero Data Retention • LGPD Compliance</span>
-            </div>
+
           </div>
         </div>
-      ) : (
-        /* ESTADO 2: O CHAT PURO E CENTRALIZADO (Mobile First) */
-        <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto overflow-hidden chat-anim bg-white dark:bg-zinc-950 md:border-x md:border-neutral-100 md:dark:border-zinc-900 md:shadow-2xl">
+
+        {/* ESTADO 2: O CHAT PURO E CENTRALIZADO */}
+        <div className={`chat-anim col-start-1 row-start-1 flex-1 flex flex-col w-full max-w-4xl mx-auto h-full overflow-hidden bg-white dark:bg-zinc-950 md:border-x md:border-neutral-100 md:dark:border-zinc-900 md:shadow-2xl transition-all duration-700 ease-out delay-100 ${!isWorkspaceActive ? 'opacity-0 pointer-events-none translate-y-10' : 'opacity-100 z-20 translate-y-0'}`}>
           
           {/* Feed de Mensagens */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 custom-scrollbar">

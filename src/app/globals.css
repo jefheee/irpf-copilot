@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/typography"; /* <-- CARREGAR O PLUGIN AQUI */
 
 @theme {
   --animate-slide-up: slideUpFade 0.4s ease-out forwards;
@@ -29,11 +29,11 @@
 /* Base Styles */
 @layer base {
   body {
-    @apply bg-zinc-950 text-white font-sans antialiased;
+    @apply font-sans antialiased transition-colors duration-300;
   }
 }
 
-/* Componentes Personalizados (Fora do bloco @theme) */
+/* Componentes Personalizados (Para os balões de mensagem ficarem legíveis) */
 @layer components {
   /* Scrollbar customizada */
   .custom-scrollbar::-webkit-scrollbar {
@@ -48,9 +48,9 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-zinc-700;
   }
-}
 
-/* Opcional: Se precisar de classes utilitárias diretas */
-@utility glass-panel {
-  @apply bg-zinc-900/50 backdrop-blur-md border border-zinc-800/50;
+  /* Blindagem para o balão do utilizador no Modo Escuro */
+  .prose-bubble-user p {
+    @apply text-white dark:text-zinc-950 font-medium;
+  }
 }

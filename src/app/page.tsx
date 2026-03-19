@@ -202,7 +202,7 @@ export default function Home() {
         </div>
         
         <h1 className="anim-up text-6xl sm:text-8xl md:text-[8rem] font-black tracking-tighter text-center max-w-6xl mb-8 leading-[0.85] text-neutral-900 dark:text-white">
-          AUDITORIA <br/><span className="text-blue-600 dark:text-blue-500">AUTÓNOMA.</span>
+          AUDITORIA <br/><span className="text-blue-600 dark:text-blue-500">AUTÔNOMA.</span>
         </h1>
         
         <p className="anim-up text-lg md:text-2xl text-neutral-500 dark:text-zinc-400 font-medium max-w-3xl text-center mb-16 tracking-tight">

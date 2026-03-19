@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+// A MUDANÇA ESTÁ AQUI: export function proxy
+export function proxy(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith('/admin')) {
     const basicAuth = req.headers.get('authorization');
     const url = req.nextUrl;

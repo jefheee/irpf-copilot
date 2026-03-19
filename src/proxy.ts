@@ -1,25 +1,29 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(req: NextRequest) {
-  const basicAuth = req.headers.get('authorization');
-  const url = req.nextUrl;
+export function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    const basicAuth = req.headers.get('authorization');
+    const url = req.nextUrl;
 
-  if (url.pathname.startsWith('/admin')) {
+    // Puxa as credenciais seguras do ambiente
+    const adminUser = process.env.ADMIN_USER;
+    const adminPass = process.env.ADMIN_PASS;
+
     if (basicAuth) {
       const authValue = basicAuth.split(' ')[1];
       const [user, pwd] = atob(authValue).split(':');
 
-      if (user === 'jefherson' && pwd === 'copilot2026') {
+      // Verifica se as variáveis existem e se o login bate
+      if (adminUser && adminPass && user === adminUser && pwd === adminPass) {
         return NextResponse.next();
       }
     }
-    
+    url.pathname = '/api/auth';
     return new NextResponse('Autenticação Necessária', {
       status: 401,
-      headers: { 'WWW-Authenticate': 'Basic realm="Área Restrita do IRPF Copilot"' },
+      headers: { 'WWW-Authenticate': 'Basic realm="Secure Area"' },
     });
   }
-  
   return NextResponse.next();
 }

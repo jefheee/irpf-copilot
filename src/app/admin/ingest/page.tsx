@@ -10,7 +10,7 @@ function chunkText(text: string, chunkSize: number = 1000): string[] {
   for (const paragraph of paragraphs) {
     const trimmed = paragraph.trim();
     if (!trimmed) continue;
-    
+
     if ((currentChunk.length + trimmed.length) < chunkSize) {
       currentChunk += trimmed + '\n\n';
     } else {
@@ -42,7 +42,7 @@ export default function AdminIngest() {
       for (const file of files) {
         setStatus((prev) => `${prev}\nLendo arquivo: ${file.name}...`);
         const textData = await file.text();
-        
+
         const chunks = chunkText(textData, 1500);
 
         setStatus((prev) => `${prev}\nO arquivo foi dividido em ${chunks.length} blocos. Iniciando envio seguro...`);
@@ -95,7 +95,7 @@ export default function AdminIngest() {
 
   return (
     <main className="min-h-screen flex flex-col bg-neutral-50 dark:bg-zinc-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-300">
-      
+
       {/* HEADER IDENTIDADE DA MARCA (Sincronizado com page.tsx) */}
       <header className="flex justify-between items-center px-6 py-3 bg-white dark:bg-zinc-900 border-b border-neutral-200 dark:border-zinc-800 z-50">
         <div className="flex items-center gap-2.5">
@@ -107,9 +107,9 @@ export default function AdminIngest() {
             <span className="px-2 py-0.5 text-[10px] uppercase tracking-widest bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full border border-blue-200 dark:border-blue-800">Admin</span>
           </h1>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-2 rounded-full bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-zinc-300 hover:bg-neutral-200 dark:hover:bg-zinc-700 transition-all"
           >

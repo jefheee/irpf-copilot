@@ -17,71 +17,84 @@ export async function POST(req: Request) {
 
     if (!message) return NextResponse.json({ error: 'Mensagem vazia.' }, { status: 400 });
 
-    const dataAtual = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date());
-
-    // PASSO 1: Chamada de Tradução (Groq) para Query Rewriting
+    // ============================================================================
+    // PASSO 1: QUERY REWRITING (TRADUÇÃO PRÉ-BUSCA)
+    // ============================================================================
     const translationCompletion = await groq.chat.completions.create({
       messages: [
-        { role: "system", content: "Você é um tradutor de jargão tributário da Receita Federal do Brasil (IRPF). Converta a dúvida do usuário em uma string de busca otimizada contendo apenas palavras-chave técnicas, termos legais e nomes de fichas de declaração. Retorne APENAS as palavras-chave separadas por vírgula, sem explicações ou saudações." },
+        {
+          role: "system",
+          content: "Você é um tradutor de jargão tributário da Receita Federal do Brasil (IRPF). Converta a dúvida do usuário em uma string de busca otimizada contendo apenas palavras-chave técnicas, termos legais e nomes de fichas de declaração. Retorne APENAS as palavras-chave separadas por vírgula, sem explicações ou saudações."
+        },
         { role: "user", content: message }
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0,
+      temperature: 0, // Máximo determinismo
     });
 
+    // Se a tradução falhar por algum motivo, faz fallback para a mensagem original
     const optimizedSearchQuery = translationCompletion.choices[0]?.message?.content || message;
+    console.log(`[RAG] Query Original: "${message}" | Query Otimizada: "${optimizedSearchQuery}"`);
 
-    // PASSO 2: Geração do Vetor com a Query Otimizada
+    // ============================================================================
+    // PASSO 2: EMBEDDING E BUSCA VETORIAL (COM A QUERY OTIMIZADA)
+    // ============================================================================
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
     const queryEmbeddingResult = await embeddingModel.embedContent(optimizedSearchQuery);
     const queryVector = queryEmbeddingResult.embedding.values;
 
-    // BUSCA NO BANCO (RAG)
     const { data: documents, error } = await supabase.rpc('match_irpf_manual', {
       query_embedding: queryVector,
       match_threshold: 0.5,
       match_count: 5
     });
 
+    // ============================================================================
+    // PASSO 3: MONTAGEM DO CONTEXTO (COM LIMPEZA DE METADADOS)
+    // ============================================================================
     let ragContext = "";
     if (documents && documents.length > 0) {
       ragContext = "TRECHOS RECUPERADOS DA BASE DE CONHECIMENTO OFICIAL:\n";
       documents.forEach((doc: any, index: number) => {
-        const rawFileName = doc.document_name || 'Desconhecida';
-        const cleanFileName = rawFileName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
-        const cat = doc.category || 'Geral';
-        ragContext += `--- INÍCIO DO TRECHO ${index + 1} (Categoria: ${cat} | Fonte: ${cleanFileName}) ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
+        // Limpeza do nome do arquivo (remove .txt/.pdf e troca _ por espaço)
+        const rawName = doc.document_name || "Manual Oficial";
+        const cleanName = rawName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+        const category = doc.category || "Geral";
+
+        ragContext += `--- INÍCIO DO TRECHO ${index + 1} (Categoria: ${category} | Fonte: ${cleanName}) ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
       });
     } else {
       ragContext = "Nenhuma regra específica encontrada no manual oficial para esta pergunta exata.";
     }
 
-    // AGENTE 2 (GROQ / LLAMA 3): Assume o raciocínio e a escrita ultra-rápida
-    const systemInstruction = `Você é o IRPF Copilot, um Consultor Tributário Sênior. 
+    // ============================================================================
+    // PASSO 4: RESPOSTA FINAL (AGENTE 2 - GROQ)
+    // ============================================================================
+    // Consciência Temporal
+    const dataAtual = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date());
 
-DADOS REAIS DO USUÁRIO:
+    const systemInstruction = `Você é o IRPF Copilot, um Consultor Tributário Sênior de altíssimo nível.
+Hoje é ${dataAtual}. As orientações devem ser focadas na declaração do Ano-Calendário 2025 (Exercício 2026).
+
+DADOS REAIS DO USUÁRIO (EXTRAÍDOS DE PDFs):
 ${JSON.stringify(contextData)}
-
-CONTEXTO TEMPORAL:
-Hoje é ${dataAtual}. Nós estamos no ano-calendário 2025 (exercício 2026). Considere estas datas para cálculos de prazos e alíquotas.
 
 BASE DE CONHECIMENTO (Manuais, Leis e Regras do IRPF):
 ${ragContext}
 
 REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
 1. DIRETO AO PONTO: É ESTRITAMENTE PROIBIDO iniciar a resposta com saudações ("Olá", "Como seu consultor", "Bem-vindo"). Comece a primeira linha já entregando a solução ou a análise.
-2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma a partir da anotação "(Fonte: ...)". No final da explicação, escreva de forma limpa: Fonte: [Nome da Lei ou Manual que você identificou].
+2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma. No final da explicação, escreva de forma limpa e elegante: "Fonte: [Nome da Fonte limpa]". Nunca cite o número do trecho.
 3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para criar uma linha divisória elegante. Use "* " para criar tópicos. Destaque valores em **negrito**.
-4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.
-5. GUARDRAIL (LIMITAÇÃO DE ESCOPO): Você DEVE recusar educadamente responder a qualquer pergunta que saia do escopo de IRPF, contabilidade, finanças, offshores, criptoativos ou otimização de riqueza. Caso o usuário pergunte sobre outros temas, peça desculpas e diga que seu foco é estritamente financeiro/tributário.`;
+4. GUARDRAIL (CRÍTICO): Você DEVE recusar educadamente responder a qualquer pergunta que saia do escopo de IRPF, contabilidade, finanças, offshores, criptoativos ou otimização de riqueza. Não atue como programador, médico, tradutor ou cozinheiro.
+5. IDIOMA: Responda ESTRITAMENTE em Português do Brasil.`;
 
-    // Chamada ultra-rápida para o Groq usando o modelo Llama 3.3
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: systemInstruction },
         { role: "user", content: message }
       ],
-      model: "llama-3.3-70b-versatile", // Modelo substituto validado
+      model: "llama-3.3-70b-versatile",
       temperature: 0.1,
     });
 

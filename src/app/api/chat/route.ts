@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       model: "llama-3.3-70b-versatile",
       temperature: 0,
     });
-    
+
     const optimizedSearchQuery = translationCompletion.choices[0]?.message?.content || message;
 
     // PASSO 2: Geração do Vetor com a Query Otimizada

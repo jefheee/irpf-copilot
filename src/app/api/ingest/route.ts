@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: Request) {
   try {
-    const { chunk } = await req.json();
+    const { chunk, document_name } = await req.json();
 
     if (!chunk || chunk.length < 10) {
       return NextResponse.json({ success: true, message: 'Ignorado' });
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     const { error } = await supabase.from('irpf_manual').insert({
       content: chunk,
       embedding: embedding,
+      document_name: document_name,
     });
 
     if (error) {

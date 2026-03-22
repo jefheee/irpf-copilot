@@ -62,7 +62,7 @@ export default function AdminIngest() {
               const res = await fetch('/api/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chunk: chunks[i] })
+                body: JSON.stringify({ chunk: chunks[i], document_name: file.name })
               });
 
               if (!res.ok) {

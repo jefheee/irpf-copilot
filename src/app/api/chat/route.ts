@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     if (documents && documents.length > 0) {
       ragContext = "TRECHOS RECUPERADOS DA BASE DE CONHECIMENTO OFICIAL:\n";
       documents.forEach((doc: any, index: number) => {
-        ragContext += `--- INÍCIO DO TRECHO ${index + 1} ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
+        ragContext += `--- INÍCIO DO TRECHO ${index + 1} (Fonte: ${doc.document_name || 'Desconhecida'}) ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
       });
     } else {
       ragContext = "Nenhuma regra específica encontrada no manual oficial para esta pergunta exata.";
@@ -50,7 +50,7 @@ ${ragContext}
 
 REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
 1. DIRETO AO PONTO: É ESTRITAMENTE PROIBIDO iniciar a resposta com saudações ("Olá", "Como seu consultor", "Bem-vindo"). Comece a primeira linha já entregando a solução ou a análise.
-2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma. No final da explicação, escreva de forma limpa: Fonte: [Nome da Lei ou Manual que você identificou].
+2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma a partir da anotação "(Fonte: ...)". No final da explicação, escreva de forma limpa: Fonte: [Nome da Lei ou Manual que você identificou].
 3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para criar uma linha divisória elegante. Use "* " para criar tópicos. Destaque valores em **negrito**.
 4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.`;
 

@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     // 1. Google (Embeddings) - O ÚNICO modelo ativo e funcional em 2026
     let embedding;
     try {
-      const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
+      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" }, { apiVersion: 'v1' });
       const result = await embeddingModel.embedContent(chunk);
       embedding = result.embedding.values;
     } catch (e: any) {

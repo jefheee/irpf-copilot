@@ -17,6 +17,8 @@ export async function POST(req: Request) {
 
     if (!message) return NextResponse.json({ error: 'Mensagem vazia.' }, { status: 400 });
 
+    const dataAtual = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date());
+
     // AGENTE 1 (GEMINI): Apenas converte a pergunta em vetor para achar a lei no banco
     const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const queryEmbeddingResult = await embeddingModel.embedContent(message);
@@ -33,7 +35,10 @@ export async function POST(req: Request) {
     if (documents && documents.length > 0) {
       ragContext = "TRECHOS RECUPERADOS DA BASE DE CONHECIMENTO OFICIAL:\n";
       documents.forEach((doc: any, index: number) => {
-        ragContext += `--- INÍCIO DO TRECHO ${index + 1} (Fonte: ${doc.document_name || 'Desconhecida'}) ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
+        const rawFileName = doc.document_name || 'Desconhecida';
+        const cleanFileName = rawFileName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+        const cat = doc.category || 'Geral';
+        ragContext += `--- INÍCIO DO TRECHO ${index + 1} (Categoria: ${cat} | Fonte: ${cleanFileName}) ---\n${doc.content}\n--- FIM DO TRECHO ${index + 1} ---\n\n`;
       });
     } else {
       ragContext = "Nenhuma regra específica encontrada no manual oficial para esta pergunta exata.";
@@ -45,6 +50,9 @@ export async function POST(req: Request) {
 DADOS REAIS DO USUÁRIO:
 ${JSON.stringify(contextData)}
 
+CONTEXTO TEMPORAL:
+Hoje é ${dataAtual}. Nós estamos no ano-calendário 2025 (exercício 2026). Considere estas datas para cálculos de prazos e alíquotas.
+
 BASE DE CONHECIMENTO (Manuais, Leis e Regras do IRPF):
 ${ragContext}
 
@@ -52,7 +60,8 @@ REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
 1. DIRETO AO PONTO: É ESTRITAMENTE PROIBIDO iniciar a resposta com saudações ("Olá", "Como seu consultor", "Bem-vindo"). Comece a primeira linha já entregando a solução ou a análise.
 2. CITAÇÃO DE FONTES INTELIGENTE: Leia os trechos da Base de Conhecimento e identifique qual a norma a partir da anotação "(Fonte: ...)". No final da explicação, escreva de forma limpa: Fonte: [Nome da Lei ou Manual que você identificou].
 3. ESTRUTURA VISUAL: Use "### " para subtítulos. Use "---" em uma linha sozinha para criar uma linha divisória elegante. Use "* " para criar tópicos. Destaque valores em **negrito**.
-4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.`;
+4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.
+5. GUARDRAIL (LIMITAÇÃO DE ESCOPO): Você DEVE recusar educadamente responder a qualquer pergunta que saia do escopo de IRPF, contabilidade, finanças, offshores, criptoativos ou otimização de riqueza. Caso o usuário pergunte sobre outros temas, peça desculpas e diga que seu foco é estritamente financeiro/tributário.`;
 
 // Chamada ultra-rápida para o Groq usando o modelo Llama 3.3
 const chatCompletion = await groq.chat.completions.create({

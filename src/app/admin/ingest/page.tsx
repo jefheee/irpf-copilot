@@ -24,6 +24,7 @@ function chunkText(text: string, chunkSize: number = 1000): string[] {
 
 export default function AdminIngest() {
   const [files, setFiles] = useState<File[]>([]);
+  const [category, setCategory] = useState<string>('Geral');
   const [status, setStatus] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -62,7 +63,7 @@ export default function AdminIngest() {
               const res = await fetch('/api/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chunk: chunks[i], document_name: file.name })
+                body: JSON.stringify({ chunk: chunks[i], document_name: file.name, category })
               });
 
               if (!res.ok) {
@@ -128,6 +129,22 @@ export default function AdminIngest() {
         </p>
 
         <div className="w-full bg-white dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-3xl shadow-xl p-8 space-y-6">
+          <div className="w-full mb-4">
+            <label htmlFor="category-select" className="block text-sm font-semibold text-neutral-700 dark:text-zinc-300 mb-2">Categoria do Documento</label>
+            <select
+              id="category-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full bg-neutral-50 dark:bg-zinc-800 border border-neutral-300 dark:border-zinc-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-zinc-500 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium appearance-none"
+            >
+              <option value="Lei / Normativa">Lei / Normativa</option>
+              <option value="Perguntas e Respostas">Perguntas e Respostas</option>
+              <option value="Manual Oficial">Manual Oficial</option>
+              <option value="Dicas / Artigos">Dicas / Artigos</option>
+              <option value="Geral">Geral</option>
+            </select>
+          </div>
+
           <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors flex flex-col items-center justify-center ${files.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-neutral-300 dark:border-zinc-700 bg-neutral-50 dark:bg-zinc-800/50 hover:border-blue-400 cursor-pointer'}`}>
             <input
               type="file"

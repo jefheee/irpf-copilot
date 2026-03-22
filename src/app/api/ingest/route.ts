@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: Request) {
   try {
-    const { chunk, document_name } = await req.json();
+    const { chunk, document_name, category } = await req.json();
 
     if (!chunk || chunk.length < 10) {
       return NextResponse.json({ success: true, message: 'Ignorado' });
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       content: chunk,
       embedding: embedding,
       document_name: document_name,
+      category: category || 'Geral',
     });
 
     if (error) {

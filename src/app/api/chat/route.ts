@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // ============================================================================
     // PASSO 2: EMBEDDING E BUSCA VETORIAL (COM A QUERY OTIMIZADA)
     // ============================================================================
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" }, { apiVersion: 'v1' });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const queryEmbeddingResult = await embeddingModel.embedContent(optimizedSearchQuery);
     const queryVector = queryEmbeddingResult.embedding.values;
 

@@ -35,7 +35,9 @@ REGRAS DE AUDITORIA:
 3. FILTRO: Ignore farmácia, academia ou material escolar para o 'plano_acao', mas avise em 'documentos_pendentes'.
 4. BENS: Para veículos financiados, declare APENAS o valor pago no ano.
 5. PLANEJAMENTO: Utilize 'otimizacao_futura' para entregar um conselho de alto valor.
-6. SINTAXE ESTRITA (CRÍTICO): NUNCA utilize aspas duplas (") ou quebras de linha literais (Enter) dentro dos textos gerados. Utilize apenas aspas simples (') se precisar isolar uma palavra.`;
+6. SINTAXE ESTRITA (CRÍTICO): NUNCA utilize aspas duplas (") ou quebras de linha literais (Enter) dentro dos textos gerados. Utilize apenas aspas simples (') se precisar isolar uma palavra.
+7. LAYOUT-AWARE PARSING: Se o documento contiver tabelas (ex: Notas de Corretagem ou Informes de Rendimento), PRESERVE A ESTRUTURA em formato Markdown dentro dos detalhes do plano de ação. Nunca esmague colunas de "Crédito" e "Débito" em texto contínuo, pois isso destrói a matemática fiscal.
+8. TAXONOMIA B3 (CRÍTICO): Ao analisar Notas de Corretagem, separe e classifique rigorosamente as operações em 'Posição Normal' e 'Day-Trade'. Se o PDF contiver indícios de operações de Leilão ou eventos corporativos não listados (como Desdobramentos/Splits), adicione OBRIGATORIAMENTE um aviso na chave 'documentos_pendentes' pedindo ao usuário o extrato da B3 para validação.`;
 
 export async function POST(req: Request) {
   try {

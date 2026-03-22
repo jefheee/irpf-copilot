@@ -19,16 +19,28 @@ export async function POST(req: Request) {
 
     const dataAtual = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date());
 
-    // AGENTE 1 (GEMINI): Apenas converte a pergunta em vetor para achar a lei no banco
-    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-    const queryEmbeddingResult = await embeddingModel.embedContent(message);
+    // PASSO 1: Chamada de Tradução (Groq) para Query Rewriting
+    const translationCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: "Você é um tradutor de jargão tributário da Receita Federal do Brasil (IRPF). Converta a dúvida do usuário em uma string de busca otimizada contendo apenas palavras-chave técnicas, termos legais e nomes de fichas de declaração. Retorne APENAS as palavras-chave separadas por vírgula, sem explicações ou saudações." },
+        { role: "user", content: message }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0,
+    });
+    
+    const optimizedSearchQuery = translationCompletion.choices[0]?.message?.content || message;
+
+    // PASSO 2: Geração do Vetor com a Query Otimizada
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const queryEmbeddingResult = await embeddingModel.embedContent(optimizedSearchQuery);
     const queryVector = queryEmbeddingResult.embedding.values;
 
     // BUSCA NO BANCO (RAG)
     const { data: documents, error } = await supabase.rpc('match_irpf_manual', {
       query_embedding: queryVector,
       match_threshold: 0.5,
-      match_count: 5 
+      match_count: 5
     });
 
     let ragContext = "";
@@ -63,15 +75,15 @@ REGRAS DE POSTURA E CITAÇÃO (OBRIGATÓRIO):
 4. IDIOMA: Responda ESTRITAMENTE em Português do Brasil. Se o usuário falar em outro idioma, traduza a resposta para Português do Brasil.
 5. GUARDRAIL (LIMITAÇÃO DE ESCOPO): Você DEVE recusar educadamente responder a qualquer pergunta que saia do escopo de IRPF, contabilidade, finanças, offshores, criptoativos ou otimização de riqueza. Caso o usuário pergunte sobre outros temas, peça desculpas e diga que seu foco é estritamente financeiro/tributário.`;
 
-// Chamada ultra-rápida para o Groq usando o modelo Llama 3.3
-const chatCompletion = await groq.chat.completions.create({
-  messages: [
-    { role: "system", content: systemInstruction },
-    { role: "user", content: message }
-  ],
-  model: "llama-3.3-70b-versatile", // Modelo substituto validado
-  temperature: 0.1,
-});
+    // Chamada ultra-rápida para o Groq usando o modelo Llama 3.3
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: message }
+      ],
+      model: "llama-3.3-70b-versatile", // Modelo substituto validado
+      temperature: 0.1,
+    });
 
     return NextResponse.json({ reply: chatCompletion.choices[0]?.message?.content || "" });
 

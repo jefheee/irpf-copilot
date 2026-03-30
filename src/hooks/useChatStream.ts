@@ -12,7 +12,7 @@ export function useChatStream() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = async (userText: string) => {
+  const sendMessage = async (userText: string, contextData: any = []) => {
     if (!userText.trim() || isLoading) return;
 
     // Add user message to UI immediately
@@ -31,7 +31,7 @@ export function useChatStream() {
         },
         body: JSON.stringify({
           message: userText,
-          contextData: { status: "Aguardando upload de documentos na próxima iteração" }
+          contextData: contextData
         })
       });
 

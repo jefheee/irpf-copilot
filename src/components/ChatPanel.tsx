@@ -5,7 +5,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChatStream } from '../hooks/useChatStream';
 
-export default function ChatPanel() {
+import { BrokerageNote } from '../types/finance';
+
+interface ChatPanelProps {
+  extractedData: BrokerageNote[];
+}
+
+export default function ChatPanel({ extractedData }: ChatPanelProps) {
   const { messages, isLoading, sendMessage } = useChatStream();
   const [input, setInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -17,7 +23,7 @@ export default function ChatPanel() {
 
   const handleSend = () => {
     if (input.trim()) {
-      sendMessage(input.trim());
+      sendMessage(input.trim(), extractedData);
       setInput('');
     }
   };

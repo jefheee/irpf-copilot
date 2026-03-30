@@ -5,57 +5,64 @@ import { z } from 'zod';
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const BrokerageNoteSchema = z.object({
-  data_pregao: z.string(),
-  corretora: z.string(),
-  operacoes: z.array(Object.assign(z.object({
+const UniversalDocumentSchema = z.object({
+  categoria: z.enum(['B3', 'SAUDE', 'EDUCACAO', 'IDENTIFICACAO', 'DECLARACAO_ANTERIOR', 'OUTROS']),
+  descricao_generica: z.string().optional(),
+  data_pregao: z.string().optional(),
+  corretora: z.string().optional(),
+  operacoes: z.array(z.object({
     ticker: z.string(),
     tipo: z.enum(['COMPRA', 'VENDA']),
     classificacao: z.enum(['DAY_TRADE', 'OPERACAO_COMUM']),
     quantidade: z.number(),
     preco_unitario: z.number(),
-    valor_total_rateado: z.number() // Já com emolumentos diluídos
-  }))),
-  eventos_pendentes: z.boolean()
+    valor_total_rateado: z.number()
+  })).optional(),
+  eventos_pendentes: z.boolean().optional(),
+  data_emissao: z.string().optional(),
+  emissor: z.string().optional(),
+  valor_total: z.number().optional(),
+  dados_declaracao_anterior: z.object({
+    ano_exercicio: z.string().nullable().optional(),
+    total_bens_direitos: z.number().nullable().optional(),
+    dependentes_identificados: z.number().nullable().optional()
+  }).optional()
 });
 
-const systemPrompt = `Você é um motor de "Intelligent Document Processing" (IDP) que age como o Py_Financas/CorrePy. Especialista na taxonomia da B3 (Notas de Corretagem SINACOR).
+const systemPrompt = `Você é um motor de "Intelligent Document Processing" (IDP) Omnívoro. Especialista em taxonomia fiscal fechada.
 
-OBJETIVO PRINCIPAL: Extrair dados estruturados das notas de corretagem. Retorne ESTRITAMENTE um objeto JSON válido.
+OBJETIVO PRINCIPAL: Extrair dados estruturados de qualquer documento financeiro. Retorne ESTRITAMENTE um objeto JSON válido.
 
-HEURÍSTICAS BRASILEIRAS (B3) EXIGIDAS:
-* REGRAS DE TAXONOMIA DETALHADA: Não confie exclusivamente na letra (D) ou (N) impressa na nota. Verifique ativamente: Se encontrar operações de COMPRA (C) E VENDA (V) do MESMO ATIVO (ticker, ex: PETR4) na MESMA DATA na MESMA corretora, classifique TODAS as partes dessa operação casada obrigatoriamente como "DAY_TRADE". Se não, classifique como "OPERACAO_COMUM".
-* DILUIÇÃO DE CUSTOS (CRÍTICO): Os totais do "Resumo Financeiro" (Taxa de liquidação, CBLC, Corretagem) são cobrados de forma agregada ao fim. O campo "valor_total_rateado" NÃO é apenas quantidade * preço. OBRIGATORIAMENTE calcule o custo exato: Encontre os Custos e Emolumentos totais do documento, calcule o % que o Volume Financeiro desta Operação representa ante o Volume Total do pregão, e agregue esta exata fatia de custo à operação (somando se for compra, ou deduzindo do líquido se for venda).
-* EVENTOS SOCIETÁRIOS: Identifique ocorrências atípicas como 'Desdobramento', 'Grupamento', 'Bonificação'. Ative "eventos_pendentes": true se existirem na folha.
+HEURÍSTICAS DE CATEGORIZAÇÃO:
+1. B3 (Notas de Corretagem): Extraia as operações. Se encontrar COMPRA E VENDA do MESMO ATIVO na MESMA DATA, é DAY_TRADE. Dilua os custos ("valor_total_rateado"). Alerte "eventos_pendentes" se houver Desdobramento/Grupamento/Bonificação.
+2. DECLARACAO_ANTERIOR: Se o documento for o Recibo ou as Fichas da Declaração de Ajuste Anual do IRPF de anos anteriores (DECLARACAO_ANTERIOR), não procure despesas. Extraia o Ano do Exercício, conte quantos dependentes existem listados e resuma o valor total em Bens e Direitos. O objetivo é criar um mapa base para a declaração atual.
+3. SAUDE / EDUCACAO: Extraia data de emissão, nome do emissor (médico/hospital/escola) e valor total. Adicione uma descricao_generica do serviço.
+4. IDENTIFICACAO: Se for RG/CNH.
+5. OUTROS: Tudo o que não se encaixar.
 
-SCHEMA OBRIGATÓRIO:
+O Schema JSON de saída deve sempre incluir "categoria". As chaves de cada categoria (ex: "operacoes" para B3, "dados_declaracao_anterior" para DECLARACAO_ANTERIOR) devem ser preenchidas quando aplicável.
+
+SCHEMA DE SAÍDA BASE (Exemplo da estrutura esperada baseada na categoria):
 {
-  "data_pregao": "DD/MM/YYYY",
-  "corretora": "Nome da Instituição",
-  "operacoes": [
-    {
-      "ticker": "Código Ativo (Ex: VALE3)",
-      "tipo": "COMPRA" ou "VENDA",
-      "classificacao": "DAY_TRADE" ou "OPERACAO_COMUM",
-      "quantidade": number,
-      "preco_unitario": number,
-      "valor_total_rateado": number
-    }
-  ],
-  "eventos_pendentes": boolean
-}`;
+  "categoria": "DECLARACAO_ANTERIOR",
+  "descricao_generica": "Resumo da declaração base",
+  "dados_declaracao_anterior": {
+    "ano_exercicio": "2024",
+    "total_bens_direitos": 150000.00,
+    "dependentes_identificados": 3
+  }
+}
+`;
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    // Forçamos o processamento de 1 (UM) documento por chamada (Estratégia Anti-Timeout)
     const documentFile = formData.get('document') as File | null;
 
     if (!documentFile) {
-      return NextResponse.json({ error: 'Nenhum documento B3 anexado para processamento.' }, { status: 400 });
+      return NextResponse.json({ error: 'Nenhum documento anexado para processamento.' }, { status: 400 });
     }
     
-    // Payload Size Limit Defense (Prevents Next.js crash/RAM max out)
     if (documentFile.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: 'O ficheiro excede o tamanho máximo suportado.' }, { status: 413 });
     }
@@ -63,6 +70,7 @@ export async function POST(req: Request) {
     const arrayBuffer = await documentFile.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
     
+    // Suporte dinâmico para MimeType (PDF e Imagens)
     const inlineData = {
       inlineData: {
         data: base64Data,
@@ -79,12 +87,13 @@ export async function POST(req: Request) {
       },
     });
 
-    const result = await model.generateContent([inlineData, "Extrair dados operacionais desta nota da B3 via schema taxado."]);
+    const result = await model.generateContent([inlineData, "Extrair dados operacionais e financeiros deste documento via schema taxado."]);
     const textResponse = result.response.text();
     
-    // Regra de arquitetura: Adoção 100% nativa de type: json_object (Gemini equivalent) sem fallback regex (Resolução de Event Loop Overhead)
-    const parsedData = JSON.parse(textResponse);
-    const safeData = BrokerageNoteSchema.parse(parsedData);
+    // Regra de resiliência: Blindagem manual contra quebras de linha literais
+    const cleanedTextResponse = textResponse.replace(/[\x00-\x1F]+/g, '');
+    const parsedData = JSON.parse(cleanedTextResponse);
+    const safeData = UniversalDocumentSchema.parse(parsedData);
 
     return NextResponse.json(safeData);
 
@@ -93,7 +102,6 @@ export async function POST(req: Request) {
        return NextResponse.json({ error: 'Rate limit excedido na API de Inteligência.' }, { status: 429 });
     }
     
-    // Default 500 without stack trace leakage to secure architecture
     return NextResponse.json({ error: 'Falha na avaliação e extração estrutural do documento financeiro.' }, { status: 500 });
   }
 }

@@ -2,17 +2,17 @@
 
 import { useState } from 'react';
 import ChatPanel from '../components/ChatPanel';
-import B3Uploader from '../components/B3Uploader';
+import DocumentUploader from '../components/DocumentUploader';
 import FinancialWhiteboard from '../components/FinancialWhiteboard';
-import { BrokerageNote } from '../types/finance';
+import { UniversalDocument } from '../types/finance';
 
 export default function Home() {
-  const [extractedData, setExtractedData] = useState<BrokerageNote[]>([]);
+  const [extractedData, setExtractedData] = useState<UniversalDocument[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleNoteSuccess = (note: BrokerageNote) => {
+  const handleDocumentSuccess = (doc: UniversalDocument) => {
     // Elevando o Estado: Anexando cada nova extração imediatamente no fim da fila atual.
-    setExtractedData(prev => [...prev, note]);
+    setExtractedData(prev => [...prev, doc]);
   };
 
   return (
@@ -28,7 +28,7 @@ export default function Home() {
         
         {/* Header Superior - Uploader Progressivo */}
         <div className="flex-shrink-0 bg-white z-20">
-          <B3Uploader onProcessing={setIsProcessing} onSuccess={handleNoteSuccess} />
+          <DocumentUploader onProcessing={setIsProcessing} onSuccess={handleDocumentSuccess} />
         </div>
 
         {/* Quadro Financeiro Renderizado Dinamicamente */}
@@ -43,10 +43,10 @@ export default function Home() {
                 </svg>
               </div>
               <h2 className="text-4xl font-black tracking-tighter text-zinc-800">
-                Aguardando Extração B3
+                Aguardando Motor Omnívoro
               </h2>
               <p className="text-zinc-500 font-medium max-w-md mx-auto tracking-tight leading-relaxed">
-                Arraste as suas notas de corretagem acima. O Cérebro 2 terá acesso imediato aos cálculos atuariais validados.
+                Arraste declarações, notas ou recibos acima. O Cérebro 2 baseará as análises nos metadados validados.
               </p>
             </div>
           </div>

@@ -2,14 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
-import { BrokerageNote } from '../types/finance';
+import { UniversalDocument } from '../types/finance';
 
-interface B3UploaderProps {
+interface DocumentUploaderProps {
   onProcessing: (isProcessing: boolean) => void;
-  onSuccess: (note: BrokerageNote) => void;
+  onSuccess: (document: UniversalDocument) => void;
 }
 
-export default function B3Uploader({ onProcessing, onSuccess }: B3UploaderProps) {
+export default function DocumentUploader({ onProcessing, onSuccess }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
 
@@ -19,20 +19,20 @@ export default function B3Uploader({ onProcessing, onSuccess }: B3UploaderProps)
     const total = files.length;
 
     for (const file of files) {
-      if (file.type !== 'application/pdf') {
-        setQueueStatus(`A saltar: ${file.name} não é um PDF válido.`);
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        setQueueStatus(`A saltar: ${file.name} não é um formato suportado.`);
         await new Promise(r => setTimeout(r, 1500));
         current++;
         continue;
       }
 
-      setQueueStatus(`Processando nota ${current} de ${total}...`);
+      setQueueStatus(`Processando documento ${current} de ${total}...`);
       
       const formData = new FormData();
       formData.append('document', file);
 
       try {
-         // Estratégia Anti-Timeout: Awaiting single file
         const response = await fetch('/api/extract', {
           method: 'POST',
           body: formData,
@@ -42,19 +42,19 @@ export default function B3Uploader({ onProcessing, onSuccess }: B3UploaderProps)
           throw new Error('Falha na extração');
         }
 
-        const data: BrokerageNote = await response.json();
+        const data: UniversalDocument = await response.json();
         onSuccess(data);
 
       } catch (error) {
          console.error(`Erro ao processar ${file.name}:`, error);
-         setQueueStatus(`Erro na nota ${current}. A avançar...`);
+         setQueueStatus(`Erro no documento ${current}. A avançar...`);
          await new Promise(r => setTimeout(r, 2000));
       }
       
       current++;
     }
 
-    setQueueStatus('Todas as notas processadas!');
+    setQueueStatus('Processamento concluído!');
     setTimeout(() => {
       setQueueStatus(null);
       onProcessing(false);
@@ -100,15 +100,15 @@ export default function B3Uploader({ onProcessing, onSuccess }: B3UploaderProps)
 
         <UploadCloud className={`w-12 h-12 mb-4 ${isDragging ? 'text-zinc-900' : 'text-zinc-300'}`} />
         <h3 className="text-xl font-black text-zinc-900 tracking-tighter mb-2 text-center">
-          Arraste Notas de Corretagem (B3)
+          Arraste Documentos Fiscais ou Financeiros
         </h3>
         <p className="text-zinc-500 font-medium text-sm text-center mb-6">
-          Solte múltiplos PDFs. A arquitetura extrai cada nota sequencialmente para evitar falhas do lado do LLM.
+          Suporte: PDF, JPEG, PNG. O Motor Omnívoro extrai recibos, notas da B3 ou a declaração do ano passado.
         </p>
         
         <label className="bg-zinc-900 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-zinc-800 transition-colors cursor-pointer shadow-xl shadow-zinc-900/10 active:scale-95">
           SELECIONAR FICHEIROS
-          <input type="file" multiple accept="application/pdf" className="hidden" onChange={onFileSelect} />
+          <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/jpg" className="hidden" onChange={onFileSelect} />
         </label>
       </div>
     </div>

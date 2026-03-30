@@ -5,10 +5,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChatStream } from '../hooks/useChatStream';
 
-import { BrokerageNote } from '../types/finance';
+import { UniversalDocument } from '../types/finance';
 
 interface ChatPanelProps {
-  extractedData: BrokerageNote[];
+  extractedData: UniversalDocument[];
 }
 
 export default function ChatPanel({ extractedData }: ChatPanelProps) {

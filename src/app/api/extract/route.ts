@@ -22,11 +22,18 @@ const UniversalDocumentSchema = z.object({
   data_emissao: z.string().optional(),
   emissor: z.string().optional(),
   valor_total: z.number().optional(),
+  // Declaracao Anterior Specific
   dados_declaracao_anterior: z.object({
     ano_exercicio: z.string().nullable().optional(),
     total_bens_direitos: z.number().nullable().optional(),
     dependentes_identificados: z.number().nullable().optional()
-  }).optional()
+  }).optional(),
+  dados_financeiros_extensos: z.array(z.object({
+    entidade_ou_ativo: z.string(),
+    valor_identificado: z.number().nullable(),
+    natureza: z.enum(['AQUISICAO_BEM', 'ALIENACAO_BEM', 'RENDIMENTO_TRIBUTAVEL', 'RENDIMENTO_ISENTO', 'DESPESA', 'IMPOSTO_RETIDO', 'DESCONHECIDO']),
+    data_fato_gerador: z.string().nullable()
+  })).optional()
 });
 
 const systemPrompt = `Você é um motor de "Intelligent Document Processing" (IDP) Omnívoro. Especialista em taxonomia fiscal fechada.
@@ -39,6 +46,8 @@ HEURÍSTICAS DE CATEGORIZAÇÃO:
 3. SAUDE / EDUCACAO: Extraia data de emissão, nome do emissor (médico/hospital/escola) e valor total. Adicione uma descricao_generica do serviço.
 4. IDENTIFICACAO: Se for RG/CNH.
 5. OUTROS: Tudo o que não se encaixar.
+
+Se o documento for classificado como OUTROS, DECLARACAO_ANTERIOR ou qualquer outro tipo, DEVES mapear exaustivamente todos os valores monetários, bens, carros, imóveis, CNPJs e salários para dentro do array dados_financeiros_extensos. Não resumas.
 
 O Schema JSON de saída deve sempre incluir "categoria". As chaves de cada categoria (ex: "operacoes" para B3, "dados_declaracao_anterior" para DECLARACAO_ANTERIOR) devem ser preenchidas quando aplicável.
 

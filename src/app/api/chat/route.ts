@@ -99,7 +99,9 @@ Esquema Objeto Retornado Obrigatório:
       // PASSO 3: MOTOR DETERMINÍSTICO TYPESCRIPT (TAX GUARDS)
       // ============================================================================
       // Delegação de cálculos fora da alucinação do modelo
-      if (safeData.tipo_despesa.toLowerCase().includes('instru') || 
+      if (safeData.valor_bruto === 0) {
+         mathContext = ""; // Silencia bloqueios matemáticos irrelevantes para perguntas de contexto genérico
+      } else if (safeData.tipo_despesa.toLowerCase().includes('instru') || 
           safeData.tipo_despesa.toLowerCase().includes('escola') || 
           safeData.tipo_despesa.toLowerCase().includes('educa')) {
           
@@ -129,6 +131,7 @@ ${ragContext}
 ${mathContext}
 
 REGRAS ESTÓICAS (OBRIGATÓRIO):
+REGRA DE OURO: Se o utilizador perguntar sobre os dados dos seus documentos, baseia-te exclusivamente no objeto DADOS DO USUÁRIO VINCULADO. Se o banco de dados vetorial de Leis retornar informações não relacionadas ao contexto do utilizador (ex: regras de médicos para uma compra de carro), ignora a lei e não a menciones.
 0. STRICT GROUNDING: Sua resposta só existe pelo contexto da base de dados e cálculo governamental fornecido. Se houver CÁLCULO ATUARIAL DO SISTEMA acima, você DEVE honrá-lo integralmente, reproduzindo a dedução apontada por ele sem inventar sua própria matemática.
 1. DIRETO AO PONTO: Sem saudações ou blá blá blá motivacional de introdução. Entregue valor cru.
 2. CITAÇÃO: Indique textualmente "Fonte:" para cada regra extraída das referências fornecidas.

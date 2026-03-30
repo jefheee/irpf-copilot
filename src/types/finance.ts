@@ -30,6 +30,13 @@ export interface UniversalDocument {
     total_bens_direitos?: number | null;
     dependentes_identificados?: number | null;
   };
+  
+  dados_financeiros_extensos?: {
+    entidade_ou_ativo: string;
+    valor_identificado: number | null;
+    natureza: 'AQUISICAO_BEM' | 'ALIENACAO_BEM' | 'RENDIMENTO_TRIBUTAVEL' | 'RENDIMENTO_ISENTO' | 'DESPESA' | 'IMPOSTO_RETIDO' | 'DESCONHECIDO';
+    data_fato_gerador: string | null;
+  }[];
 }
 
 // Retro-compatibility (or alias) for the old B3 struct used downstream

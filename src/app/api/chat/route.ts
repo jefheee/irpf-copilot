@@ -92,11 +92,7 @@ Esquema Objeto Retornado Obrigatório:
     let mathContext = "";
     try {
       const rawJson = extractionCompletion.choices[0]?.message?.content || "{}";
-      
-      // Resiliência de quebra de linhas malucas e formatações indesejadas [REGRA DE SEGURANÇA]
-      const sanitizedString = rawJson.replace(/[\x00-\x1F]+/g, ""); 
-      
-      const parsedData = JSON.parse(sanitizedString);
+      const parsedData = JSON.parse(rawJson);
       const safeData = DespesaSchema.parse(parsedData); // Validado pelo ZOD
 
       // ============================================================================

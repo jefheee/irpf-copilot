@@ -1,106 +1,99 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey!);
+const apiKey = process.env.GEMINI_API_KEY!;
+const genAI = new GoogleGenerativeAI(apiKey);
 
-const systemPrompt = `Você é um Auditor Fiscal Sênior especialista no IRPF 2026 (Ano-Calendário 2025).
-Sua missão é atuar como um motor de "Intelligent Document Processing" (IDP). Extraia dados de PDFs e imagens com precisão cirúrgica, focando em MAXIMIZAR A RESTITUIÇÃO e blindar o usuário.
+const BrokerageNoteSchema = z.object({
+  data_pregao: z.string(),
+  corretora: z.string(),
+  operacoes: z.array(Object.assign(z.object({
+    ticker: z.string(),
+    tipo: z.enum(['COMPRA', 'VENDA']),
+    classificacao: z.enum(['DAY_TRADE', 'OPERACAO_COMUM']),
+    quantidade: z.number(),
+    preco_unitario: z.number(),
+    valor_total_rateado: z.number() // Já com emolumentos diluídos
+  }))),
+  eventos_pendentes: z.boolean()
+});
 
-RETORNE ESTRITAMENTE UM OBJETO JSON COM ESTAS 4 CHAVES (Se não houver dados para uma chave, retorne OBRIGATORIAMENTE um array vazio []):
+const systemPrompt = `Você é um motor de "Intelligent Document Processing" (IDP) que age como o Py_Financas/CorrePy. Especialista na taxonomia da B3 (Notas de Corretagem SINACOR).
 
+OBJETIVO PRINCIPAL: Extrair dados estruturados das notas de corretagem. Retorne ESTRITAMENTE um objeto JSON válido.
+
+HEURÍSTICAS BRASILEIRAS (B3) EXIGIDAS:
+* REGRAS DE TAXONOMIA DETALHADA: Não confie exclusivamente na letra (D) ou (N) impressa na nota. Verifique ativamente: Se encontrar operações de COMPRA (C) E VENDA (V) do MESMO ATIVO (ticker, ex: PETR4) na MESMA DATA na MESMA corretora, classifique TODAS as partes dessa operação casada obrigatoriamente como "DAY_TRADE". Se não, classifique como "OPERACAO_COMUM".
+* DILUIÇÃO DE CUSTOS (CRÍTICO): Os totais do "Resumo Financeiro" (Taxa de liquidação, CBLC, Corretagem) são cobrados de forma agregada ao fim. O campo "valor_total_rateado" NÃO é apenas quantidade * preço. OBRIGATORIAMENTE calcule o custo exato: Encontre os Custos e Emolumentos totais do documento, calcule o % que o Volume Financeiro desta Operação representa ante o Volume Total do pregão, e agregue esta exata fatia de custo à operação (somando se for compra, ou deduzindo do líquido se for venda).
+* EVENTOS SOCIETÁRIOS: Identifique ocorrências atípicas como 'Desdobramento', 'Grupamento', 'Bonificação'. Ative "eventos_pendentes": true se existirem na folha.
+
+SCHEMA OBRIGATÓRIO:
 {
-  "documentos_pendentes": [
-    "Avisos críticos."
-  ],
-  "plano_acao": [
+  "data_pregao": "DD/MM/YYYY",
+  "corretora": "Nome da Instituição",
+  "operacoes": [
     {
-      "titulo": "Ação (Ex: Lançar Despesa Médica)",
-      "caminho": "Ficha",
-      "detalhes": "1. Passo\\n2. Passo"
+      "ticker": "Código Ativo (Ex: VALE3)",
+      "tipo": "COMPRA" ou "VENDA",
+      "classificacao": "DAY_TRADE" ou "OPERACAO_COMUM",
+      "quantidade": number,
+      "preco_unitario": number,
+      "valor_total_rateado": number
     }
   ],
-  "fichas": [
-    {
-      "ficha": "Nome Oficial da Ficha",
-      "dados": { "Nome do Campo": "Valor" }
-    }
-  ],
-  "otimizacao_futura": "Uma dica proativa de planejamento financeiro."
-}
-
-REGRAS DE AUDITORIA:
-1. CAÇA ÀS DEDUÇÕES: Vasculhe as imagens por despesas. Extraia CNPJ/CPF.
-2. CONSOLIDAÇÃO: Se houver múltiplos recibos do mesmo prestador, SOME os valores num único card.
-3. FILTRO: Ignore farmácia, academia ou material escolar para o 'plano_acao', mas avise em 'documentos_pendentes'.
-4. BENS: Para veículos financiados, declare APENAS o valor pago no ano.
-5. PLANEJAMENTO: Utilize 'otimizacao_futura' para entregar um conselho de alto valor.
-6. SINTAXE ESTRITA (CRÍTICO): NUNCA utilize aspas duplas (") ou quebras de linha literais (Enter) dentro dos textos gerados. Utilize apenas aspas simples (') se precisar isolar uma palavra.
-7. LAYOUT-AWARE PARSING: Se o documento contiver tabelas (ex: Notas de Corretagem ou Informes de Rendimento), PRESERVE A ESTRUTURA em formato Markdown dentro dos detalhes do plano de ação. Nunca esmague colunas de "Crédito" e "Débito" em texto contínuo, pois isso destrói a matemática fiscal.
-8. TAXONOMIA B3 (CRÍTICO): Ao analisar Notas de Corretagem, separe e classifique rigorosamente as operações em 'Posição Normal' e 'Day-Trade'. Se o PDF contiver indícios de operações de Leilão ou eventos corporativos não listados (como Desdobramentos/Splits), adicione OBRIGATORIAMENTE um aviso na chave 'documentos_pendentes' pedindo ao usuário o extrato da B3 para validação.`;
+  "eventos_pendentes": boolean
+}`;
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const baseDocument = formData.get('baseDocument') as File | null;
-    const receipts = formData.getAll('receipts') as File[];
+    // Forçamos o processamento de 1 (UM) documento por chamada (Estratégia Anti-Timeout)
+    const documentFile = formData.get('document') as File | null;
 
-    if (!baseDocument && receipts.length === 0) {
-      return NextResponse.json({ error: 'Nenhum documento.' }, { status: 400 });
+    if (!documentFile) {
+      return NextResponse.json({ error: 'Nenhum documento B3 anexado para processamento.' }, { status: 400 });
+    }
+    
+    // Payload Size Limit Defense (Prevents Next.js crash/RAM max out)
+    if (documentFile.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'O ficheiro excede o tamanho máximo suportado.' }, { status: 413 });
     }
 
-    const parts: any[] = [];
-
-    if (baseDocument) {
-      if (baseDocument.type === 'application/json' || baseDocument.name.endsWith('.json')) {
-        const jsonText = await baseDocument.text();
-        parts.push(`=== DECLARAÇÃO BASE ===\n${jsonText}`);
-      } else {
-        const arrayBuffer = await baseDocument.arrayBuffer();
-        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: baseDocument.type } });
+    const arrayBuffer = await documentFile.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    
+    const inlineData = {
+      inlineData: {
+        data: base64Data,
+        mimeType: documentFile.type
       }
-    }
-
-    if (receipts.length > 0) {
-      parts.push("=== NOVOS RECIBOS ===");
-      for (const file of receipts) {
-        const arrayBuffer = await file.arrayBuffer();
-        parts.push({ inlineData: { data: Buffer.from(arrayBuffer).toString('base64'), mimeType: file.type } });
-      }
-    }
-
-    parts.push("Mapeie a evolução patrimonial. Lembre-se: SE NÃO HOUVER AÇÕES, RETORNE 'plano_acao': [] COMO UM ARRAY VAZIO.");
-
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3-flash-preview',
-      systemInstruction: systemPrompt,
-      generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-    });
-
-    const result = await model.generateContent(parts);
-    const textResponse = result.response.text();
-
-    // PROTEÇÃO 1: Limpeza Anti-Markdown e Filtro de Caracteres de Controle
-    const cleanJsonText = textResponse
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .replace(/[\x00-\x1F]+/g, ' ') // <-- Mágica aqui: Usar \x bypassa o bug do Turbopack
-      .trim();
-
-    const parsedData = JSON.parse(cleanJsonText);
-
-    // PROTEÇÃO 2: Conversão Forçada de Tipos (Garante que o React nunca faça .map() numa string)
-    const safeResponse = {
-      documentos_pendentes: Array.isArray(parsedData.documentos_pendentes) ? parsedData.documentos_pendentes : [],
-      plano_acao: Array.isArray(parsedData.plano_acao) ? parsedData.plano_acao : [],
-      fichas: Array.isArray(parsedData.fichas) ? parsedData.fichas : [],
-      otimizacao_futura: typeof parsedData.otimizacao_futura === 'string' ? parsedData.otimizacao_futura : undefined
     };
 
-    return NextResponse.json(safeResponse);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3.0-pro', 
+      systemInstruction: systemPrompt,
+      generationConfig: { 
+        temperature: 0, 
+        responseMimeType: 'application/json' 
+      },
+    });
+
+    const result = await model.generateContent([inlineData, "Extrair dados operacionais desta nota da B3 via schema taxado."]);
+    const textResponse = result.response.text();
+    
+    // Regra de arquitetura: Adoção 100% nativa de type: json_object (Gemini equivalent) sem fallback regex (Resolução de Event Loop Overhead)
+    const parsedData = JSON.parse(textResponse);
+    const safeData = BrokerageNoteSchema.parse(parsedData);
+
+    return NextResponse.json(safeData);
 
   } catch (error: any) {
-    console.error("Extraction error:", error);
-    return NextResponse.json({ error: 'Falha ao processar a extração fiscal ou ao interpretar o JSON.' }, { status: 500 });
+    if (error.status === 429 || error.message?.includes('429')) {
+       return NextResponse.json({ error: 'Rate limit excedido na API de Inteligência.' }, { status: 429 });
+    }
+    
+    // Default 500 without stack trace leakage to secure architecture
+    return NextResponse.json({ error: 'Falha na avaliação e extração estrutural do documento financeiro.' }, { status: 500 });
   }
 }

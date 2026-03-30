@@ -12,13 +12,16 @@
     "@google/generative-ai": "^0.24.1",
     "@gsap/react": "^2.1.2",
     "@supabase/supabase-js": "^2.99.1",
+    "cheerio": "^1.2.0",
     "groq-sdk": "^1.1.1",
     "gsap": "^3.14.2",
     "next": "^16.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

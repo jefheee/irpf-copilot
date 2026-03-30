@@ -12,13 +12,13 @@ export type DocumentCategory = 'B3' | 'SAUDE' | 'EDUCACAO' | 'IDENTIFICACAO' | '
 export interface UniversalDocument {
   categoria: DocumentCategory;
   descricao_generica?: string;
-  
+
   // B3 Specific
   data_pregao?: string;
   corretora?: string;
   operacoes?: Operation[];
   eventos_pendentes?: boolean;
-  
+
   // Generic Invoice / Others
   data_emissao?: string;
   emissor?: string;
@@ -30,7 +30,7 @@ export interface UniversalDocument {
     total_bens_direitos?: number | null;
     dependentes_identificados?: number | null;
   };
-  
+
   dados_financeiros_extensos?: {
     entidade_ou_ativo: string;
     valor_identificado: number | null;

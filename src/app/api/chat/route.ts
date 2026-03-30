@@ -100,16 +100,16 @@ Esquema Objeto Retornado Obrigatório:
       // ============================================================================
       // Delegação de cálculos fora da alucinação do modelo
       if (safeData.valor_bruto === 0) {
-         mathContext = ""; // Silencia bloqueios matemáticos irrelevantes para perguntas de contexto genérico
-      } else if (safeData.tipo_despesa.toLowerCase().includes('instru') || 
-          safeData.tipo_despesa.toLowerCase().includes('escola') || 
-          safeData.tipo_despesa.toLowerCase().includes('educa')) {
-          
-         const calculoOficial = applyEducationDeductionGuard(safeData);
-         mathContext = `\n[CÁLCULO ATUARIAL DO SISTEMA - NÃO ALUCINE SOBRE VALORES: ${calculoOficial.justificativa}]\n`;
-         
+        mathContext = ""; // Silencia bloqueios matemáticos irrelevantes para perguntas de contexto genérico
+      } else if (safeData.tipo_despesa.toLowerCase().includes('instru') ||
+        safeData.tipo_despesa.toLowerCase().includes('escola') ||
+        safeData.tipo_despesa.toLowerCase().includes('educa')) {
+
+        const calculoOficial = applyEducationDeductionGuard(safeData);
+        mathContext = `\n[CÁLCULO ATUARIAL DO SISTEMA - NÃO ALUCINE SOBRE VALORES: ${calculoOficial.justificativa}]\n`;
+
       } else {
-         mathContext = `\n[SISTEMA: Nenhuma trava matemática aplicada para a classe ${safeData.tipo_despesa}.]\n`;
+        mathContext = `\n[SISTEMA: Nenhuma trava matemática aplicada para a classe ${safeData.tipo_despesa}.]\n`;
       }
     } catch (err: any) {
       console.error("[SafeGuard Extração Zod Error]: ", err.message || err);
@@ -173,4 +173,4 @@ REGRA DE OURO: Se o utilizador perguntar sobre os dados dos seus documentos, bas
     console.error('Erro no MSLR Core:', error);
     return NextResponse.json({ error: 'Falha letal processando Motor LLM.' }, { status: 500 });
   }
-}
+}

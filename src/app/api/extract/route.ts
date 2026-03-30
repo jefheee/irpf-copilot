@@ -62,14 +62,14 @@ export async function POST(req: Request) {
     if (!documentFile) {
       return NextResponse.json({ error: 'Nenhum documento anexado para processamento.' }, { status: 400 });
     }
-    
+
     if (documentFile.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: 'O ficheiro excede o tamanho máximo suportado.' }, { status: 413 });
     }
 
     const arrayBuffer = await documentFile.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
-    
+
     // Suporte dinâmico para MimeType (PDF e Imagens)
     const inlineData = {
       inlineData: {
@@ -79,29 +79,30 @@ export async function POST(req: Request) {
     };
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.0-pro', 
+      model: 'gemini-3.0-pro',
       systemInstruction: systemPrompt,
-      generationConfig: { 
-        temperature: 0, 
-        responseMimeType: 'application/json' 
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: 'application/json'
       },
     });
 
     const result = await model.generateContent([inlineData, "Extrair dados operacionais e financeiros deste documento via schema taxado."]);
     const textResponse = result.response.text();
-    
-    // Regra de resiliência: Blindagem manual contra quebras de linha literais
-    const cleanedTextResponse = textResponse.replace(/[\x00-\x1F]+/g, '');
-    const parsedData = JSON.parse(cleanedTextResponse);
+
+    // Parse direto, confiando no responseMimeType do Gemini
+    const parsedData = JSON.parse(textResponse);
     const safeData = UniversalDocumentSchema.parse(parsedData);
 
     return NextResponse.json(safeData);
 
   } catch (error: any) {
+    console.error("[Extração Error]:", error);
+
     if (error.status === 429 || error.message?.includes('429')) {
-       return NextResponse.json({ error: 'Rate limit excedido na API de Inteligência.' }, { status: 429 });
+      return NextResponse.json({ error: 'Rate limit excedido na API de Inteligência.' }, { status: 429 });
     }
-    
+
     return NextResponse.json({ error: 'Falha na avaliação e extração estrutural do documento financeiro.' }, { status: 500 });
   }
 }

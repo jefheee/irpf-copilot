@@ -26,9 +26,9 @@ export interface UniversalDocument {
 
   // Declaracao Anterior Specific
   dados_declaracao_anterior?: {
-    ano_exercicio: string | null;
-    total_bens_direitos: number | null;
-    dependentes_identificados: number | null;
+    ano_exercicio?: string | null;
+    total_bens_direitos?: number | null;
+    dependentes_identificados?: number | null;
   };
 }
 

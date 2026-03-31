@@ -29,10 +29,10 @@ const UniversalDocumentSchema = z.object({
     dependentes_identificados: z.number().nullable().optional()
   }).optional(),
   dados_financeiros_extensos: z.array(z.object({
-    entidade_ou_ativo: z.string(),
-    valor_identificado: z.number().nullable(),
-    natureza: z.enum(['AQUISICAO_BEM', 'ALIENACAO_BEM', 'RENDIMENTO_TRIBUTAVEL', 'RENDIMENTO_ISENTO', 'DESPESA', 'IMPOSTO_RETIDO', 'DESCONHECIDO']),
-    data_fato_gerador: z.string().nullable()
+    entidade_ou_ativo: z.string().optional(),
+    valor_identificado: z.number().nullable().optional(),
+    natureza: z.enum(['AQUISICAO_BEM', 'ALIENACAO_BEM', 'RENDIMENTO_TRIBUTAVEL', 'RENDIMENTO_ISENTO', 'DESPESA', 'IMPOSTO_RETIDO', 'DESCONHECIDO']).catch('DESCONHECIDO').optional(),
+    data_fato_gerador: z.string().nullable().optional()
   })).optional()
 });
 
@@ -99,8 +99,9 @@ export async function POST(req: Request) {
     const result = await model.generateContent([inlineData, "Extrair dados operacionais e financeiros deste documento via schema taxado."]);
     const textResponse = result.response.text();
 
-    // Parse direto, confiando no responseMimeType do Gemini
-    const parsedData = JSON.parse(textResponse);
+    // Blindagem Regex para resiliência (conforme regras) antes do parse
+    const sanitizedText = textResponse.replace(/[\x00-\x1F]+/g, "");
+    const parsedData = JSON.parse(sanitizedText);
     const safeData = UniversalDocumentSchema.parse(parsedData);
 
     return NextResponse.json(safeData);

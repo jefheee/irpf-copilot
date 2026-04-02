@@ -41,8 +41,8 @@ A arquitetura do IRPF Copilot não foi construída baseada em achismos. Realizam
 
 O design foi projetado com foco absoluto em IHC (Interação Humano-Computador). Para eliminar a fadiga cognitiva (*Context Switching*), adotamos a tela dividida: de um lado a conversa, do outro os dados.
 
-\<img width="1920" height="1080" alt="Interface Split-Screen Monocromática" src="[<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/699acca1-929d-4c47-b7fb-71958dc5f260" />
-)" /\>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cf8c7928-1424-4768-97b1-98e092258673" />
+
 
 -----
 

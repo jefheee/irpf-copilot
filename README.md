@@ -134,6 +134,11 @@ A estrutura reflete a blindagem entre Visão Computacional, Raciocínio (LLM) e 
 
 3.  **Configure as Variáveis de Ambiente:**
     Renomeie `.env.example` para `.env.local` e insira suas chaves (Google AI Studio, Groq, Supabase).
+    ex:
+    GOOGLE_API_KEY=sua_chave_gemini
+    GROQ_API_KEY=sua_chave_groq
+    NEXT_PUBLIC_SUPABASE_URL=seu_url_supabase
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_supabase
 
 4.  **Instale as dependências:**
 

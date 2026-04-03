@@ -124,7 +124,7 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
             <h3 className={`font-black tracking-tighter text-center transition-all duration-700 text-zinc-100 ${isExpanded ? 'text-4xl md:text-5xl mb-4' : 'text-lg md:text-xl mb-1'}`}>
               Arraste Documentos Fiscais ou Financeiros
             </h3>
-            <p className={`text-zinc-500 font-medium text-center transition-all duration-700 ${isExpanded ? 'text-lg md:text-xl mb-12 max-w-2xl' : 'text-xs mb-4 max-w-md'}`}>
+            <p className={`text-zinc-500 font-medium text-center mx-auto transition-all duration-700 ${isExpanded ? 'text-lg md:text-xl mb-12 max-w-2xl' : 'text-xs mb-4 max-w-md'}`}>
               Suporte: PDF, JPEG, PNG. O Motor Omnívoro extrai recibos, notas da B3 ou a declaração do ano passado.
             </p>
 

@@ -6,7 +6,7 @@ const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const UniversalDocumentSchema = z.object({
-  categoria: z.enum(['B3', 'SAUDE', 'EDUCACAO', 'DECLARACAO_ANTERIOR', 'CONTRATO_VEICULO', 'RENDIMENTOS_RETIDOS', 'OUTROS']),
+  categoria: z.string().nullable().optional(),
   resumo_identificacao: z.object({
     titular_ou_dependente: z.string().nullable().optional(),
     cpf_cnpj_envolvido: z.string().nullable().optional(),
@@ -57,9 +57,8 @@ export async function POST(req: Request) {
     const result = await model.generateContent([inlineData, "Extrair dados operacionais e financeiros deste documento via schema taxado."]);
     const textResponse = result.response.text();
 
-    // Blindagem Regex para resiliência (conforme regras) antes do parse
-    const sanitizedText = textResponse.replace(/[\x00-\x1F]+/g, "");
-    const parsedData = JSON.parse(sanitizedText);
+    // Parse direto, pois o modelo usa application/json nativamente
+    const parsedData = JSON.parse(textResponse);
     const safeData = UniversalDocumentSchema.parse(parsedData);
 
     return NextResponse.json(safeData);

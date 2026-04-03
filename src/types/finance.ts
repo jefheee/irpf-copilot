@@ -10,7 +10,7 @@ export interface Operation {
 export type DocumentCategory = 'B3' | 'SAUDE' | 'EDUCACAO' | 'DECLARACAO_ANTERIOR' | 'CONTRATO_VEICULO' | 'RENDIMENTOS_RETIDOS' | 'OUTROS';
 
 export interface UniversalDocument {
-  categoria: DocumentCategory;
+  categoria?: string | null;
   resumo_identificacao?: {
     titular_ou_dependente?: string | null;
     cpf_cnpj_envolvido?: string | null;

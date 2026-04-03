@@ -24,22 +24,20 @@ export default function Home() {
       </div>
 
       {/* Lado Direito: Whiteboard (60%) */}
-      <div className="hidden md:flex w-[60%] h-full flex-col bg-[#0c0c0e] border-l border-zinc-800/60 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-10 relative overflow-y-auto overflow-x-hidden transition-all duration-700">
-
-        {/* Header Superior - Uploader Progressivo */}
-        <div className={`transition-all duration-700 bg-[#0c0c0e]/80 backdrop-blur-xl z-20 sticky top-0 ${extractedData.length === 0 ? 'flex-1 flex flex-col' : 'flex-shrink-0'}`}>
+      <div className="hidden md:flex w-[60%] h-full flex-col bg-[#0c0c0e] border-l border-zinc-800/60 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] z-10 relative overflow-hidden transition-all duration-700">
+        
+        {/* Uploader Omnipresente (Ocupa 100% da área) */}
+        <div className="flex-1 flex flex-col w-full h-full bg-[#0c0c0e]/80 backdrop-blur-xl z-20 transition-all duration-700">
           <DocumentUploader
             onProcessing={setIsProcessing}
             onSuccess={handleDocumentSuccess}
             isExpanded={extractedData.length === 0}
-          />
-        </div>
-
-        {/* Quadro Financeiro Renderizado Dinamicamente */}
-        <div className={`transition-all duration-700 ease-in-out transform ${extractedData.length > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 hidden'}`}>
-          {extractedData.length > 0 && (
-            <FinancialWhiteboard data={extractedData} />
-          )}
+          >
+            {/* Quadro Financeiro injetado direitamente no interior do limite pontilhado */}
+            {extractedData.length > 0 && (
+              <FinancialWhiteboard data={extractedData} />
+            )}
+          </DocumentUploader>
         </div>
 
       </div>

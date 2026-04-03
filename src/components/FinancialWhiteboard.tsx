@@ -30,10 +30,10 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
 
   return (
     <div ref={containerRef} className="w-full flex-1 overflow-y-auto px-8 md:px-12 py-6 custom-scrollbar space-y-6">
-      <div className="flex items-center justify-between mb-8 sticky top-0 bg-white/90 backdrop-blur-md pt-4 pb-4 z-10 border-b border-zinc-100">
-        <h2 className="text-sm font-black text-zinc-400 uppercase tracking-[0.2em] font-sans">Contexto Acumulado</h2>
-        <span className="bg-zinc-100 text-zinc-600 px-4 py-1.5 flex items-center gap-2 rounded-full text-xs font-bold font-sans tracking-wide">
-          <BadgeAlert className="w-4 h-4 text-zinc-500" />
+      <div className="flex items-center justify-between mb-10 sticky top-6 bg-[#121214]/70 backdrop-blur-2xl px-8 py-5 rounded-3xl z-10 border border-zinc-800/80 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+        <h2 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em] font-sans">Contexto Acumulado</h2>
+        <span className="bg-zinc-900/80 text-zinc-300 px-5 py-2 flex items-center gap-2 rounded-full text-xs font-bold font-sans tracking-widest shadow-inner border border-zinc-800/60">
+          <BadgeAlert className="w-4 h-4 text-emerald-500" />
           {data.length} Documento(s)
         </span>
       </div>
@@ -46,21 +46,23 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
             const dependentes = doc.dados_declaracao_anterior?.dependentes_identificados || 0;
 
             return (
-              <div key={idx} className="finance-card bg-zinc-100 border border-zinc-300 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <div key={idx} className="finance-card bg-[#121214]/60 backdrop-blur-xl border border-zinc-800/60 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_40px_rgba(0,0,0,0.5)] hover:border-zinc-700/80 transition-all duration-500">
                 <div className="flex justify-between items-start">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="p-4 bg-zinc-200/50 rounded-2xl border border-zinc-300/60 shadow-inner">
-                      <FileArchive className="w-6 h-6 text-zinc-700" />
+                  <div className="flex flex-col md:flex-row md:items-center gap-5">
+                    <div className="p-5 bg-zinc-900/80 rounded-3xl border border-zinc-800/60 shadow-inner">
+                      <FileArchive className="w-7 h-7 text-emerald-500" />
                     </div>
                     <div>
-                      <h3 className="font-black text-zinc-950 text-xl tracking-tight leading-none mb-1">Base de {ano} Importada</h3>
-                      <p className="text-zinc-600 text-sm font-medium tracking-wide">
-                        {dependentes} dependentes mapeados, {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bens)} em bens
+                      <h3 className="font-black text-zinc-100 text-2xl tracking-tighter leading-none mb-2">Base de {ano} Importada</h3>
+                      <p className="text-zinc-500 text-sm font-medium tracking-wide">
+                        {dependentes} dependentes mapeados, <span className="text-zinc-300">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bens)}</span> em bens
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 bg-zinc-200 text-zinc-700 px-4 py-2 rounded-full text-xs font-bold tracking-wide shadow-sm">
-                    Declaração Anterior
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="bg-zinc-900/80 border border-zinc-800 text-zinc-400 px-4 py-2 rounded-full text-xs font-bold tracking-widest shadow-sm uppercase">
+                      Declaração Anterior
+                    </div>
                   </div>
                 </div>
               </div>
@@ -69,21 +71,21 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
 
           if (doc.categoria === 'B3') {
             return (
-              <div key={idx} className="finance-card bg-white border border-zinc-200 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <div key={idx} className="finance-card bg-[#121214]/60 backdrop-blur-xl border border-zinc-800/60 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_40px_rgba(0,0,0,0.5)] hover:border-zinc-700/80 transition-all duration-500">
                 {/* Header da Nota */}
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200/60 shadow-inner">
-                      <Landmark className="w-6 h-6 text-zinc-700" />
+                <div className="flex justify-between items-start mb-10">
+                  <div className="flex flex-col md:flex-row md:items-center gap-5">
+                    <div className="p-5 bg-zinc-900/80 rounded-3xl border border-zinc-800/60 shadow-inner">
+                      <Landmark className="w-7 h-7 text-blue-500" />
                     </div>
                     <div>
-                      <h3 className="font-black text-zinc-950 text-xl tracking-tight leading-none mb-1">{doc.corretora || 'Corretora Não Identificada'}</h3>
-                      <p className="text-zinc-500 text-sm font-medium tracking-wide">Pregão B3: {doc.data_pregao || 'Data Ausente'}</p>
+                      <h3 className="font-black text-zinc-100 text-2xl tracking-tighter leading-none mb-2">{doc.corretora || 'Corretora Não Identificada'}</h3>
+                      <p className="text-zinc-500 text-sm font-medium tracking-wide">Pregão B3: <span className="text-zinc-300">{doc.data_pregao || 'Data Ausente'}</span></p>
                     </div>
                   </div>
                   
                   {doc.eventos_pendentes && (
-                    <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded-full text-xs font-bold tracking-wide shadow-sm">
+                    <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 px-4 py-2 rounded-full text-xs font-bold tracking-widest shadow-sm uppercase">
                       <AlertTriangle className="w-4 h-4" />
                       Eventos Societários
                     </div>
@@ -91,29 +93,29 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
                 </div>
 
                 {/* Operações Listadas */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {doc.operacoes?.map((op, opIdx) => {
                     const isCompra = op.tipo === 'COMPRA';
                     return (
-                      <div key={opIdx} className="group flex items-center justify-between p-5 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:bg-zinc-100/50 hover:border-zinc-200 transition-colors">
-                        <div className="flex items-center gap-5">
-                          <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 ${isCompra ? 'bg-zinc-200/60 text-zinc-700' : 'bg-zinc-950 text-white'}`}>
-                            {isCompra ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                      <div key={opIdx} className="group flex items-center justify-between p-6 rounded-3xl bg-[#0c0c0e]/50 border border-zinc-800/50 hover:bg-[#151518] hover:border-zinc-700/60 transition-all duration-300">
+                        <div className="flex items-center gap-6">
+                          <div className={`p-4 rounded-2xl transition-transform duration-500 group-hover:scale-110 shadow-inner ${isCompra ? 'bg-zinc-900 border border-zinc-800 text-zinc-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500'}`}>
+                            {isCompra ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-black text-zinc-950 text-lg tracking-tight leading-none block">{op.ticker}</span>
-                            <span className="text-xs font-bold text-zinc-400 tracking-widest mt-1 uppercase">
+                            <span className="font-black text-zinc-100 text-xl tracking-tighter leading-none mb-1 block">{op.ticker}</span>
+                            <span className="text-[10px] font-black text-zinc-500 tracking-[0.2em] uppercase">
                               {op.classificacao.replace('_', ' ')}
                             </span>
                           </div>
                         </div>
                         
                         <div className="text-right flex flex-col items-end">
-                          <p className="font-black text-zinc-950 text-lg leading-none mb-1 tracking-tight">
+                          <p className="font-black text-zinc-100 text-xl leading-none mb-2 tracking-tighter">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(op.valor_total_rateado)}
                           </p>
                           <p className="text-xs font-bold text-zinc-500 tracking-wide">
-                            {op.quantidade} cotas a {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(op.preco_unitario)}
+                            {op.quantidade} cotas a <span className="text-zinc-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(op.preco_unitario)}</span>
                           </p>
                         </div>
                       </div>
@@ -127,24 +129,24 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
           // Fallback para outros documentos genéricos (SAUDE, EDUCACAO, etc)
           const valor = doc.valor_total || 0;
           return (
-            <div key={idx} className="finance-card bg-white border border-zinc-200 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div key={idx} className="finance-card bg-[#121214]/60 backdrop-blur-xl border border-zinc-800/60 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_40px_rgba(0,0,0,0.5)] hover:border-zinc-700/80 transition-all duration-500">
               <div className="flex justify-between items-start">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200/60 shadow-inner">
-                    <ReceiptText className="w-6 h-6 text-zinc-700" />
+                <div className="flex flex-col md:flex-row md:items-center gap-5">
+                  <div className="p-5 bg-zinc-900/80 rounded-3xl border border-zinc-800/60 shadow-inner">
+                    <ReceiptText className="w-7 h-7 text-zinc-400" />
                   </div>
                   <div>
-                    <h3 className="font-black text-zinc-950 text-xl tracking-tight leading-none mb-1">{doc.emissor || 'Emissor Não Identificado'}</h3>
-                    <p className="text-zinc-500 text-sm font-medium tracking-wide">Data: {doc.data_emissao || 'N/A'}</p>
-                    <p className="text-zinc-600 text-sm mt-2">{doc.descricao_generica}</p>
+                    <h3 className="font-black text-zinc-100 text-2xl tracking-tighter leading-none mb-2">{doc.emissor || 'Emissor Não Identificado'}</h3>
+                    <p className="text-zinc-500 text-sm font-medium tracking-wide">Data: <span className="text-zinc-300">{doc.data_emissao || 'N/A'}</span></p>
+                    <p className="text-zinc-400 text-sm mt-3 leading-relaxed">{doc.descricao_generica}</p>
                   </div>
                 </div>
                 
                 <div className="text-right flex flex-col items-end">
-                  <p className="font-black text-zinc-950 text-xl leading-none mb-1 tracking-tight">
+                  <p className="font-black text-zinc-100 text-2xl leading-none mb-3 tracking-tighter">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)}
                   </p>
-                  <p className="flex items-center gap-2 bg-zinc-100 text-zinc-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide mt-2">
+                  <p className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-400 px-4 py-2 rounded-full text-xs font-bold tracking-widest shadow-sm uppercase">
                     {doc.categoria}
                   </p>
                 </div>

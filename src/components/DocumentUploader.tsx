@@ -7,9 +7,10 @@ import { UniversalDocument } from '../types/finance';
 interface DocumentUploaderProps {
   onProcessing: (isProcessing: boolean) => void;
   onSuccess: (document: UniversalDocument) => void;
+  isExpanded?: boolean;
 }
 
-export default function DocumentUploader({ onProcessing, onSuccess }: DocumentUploaderProps) {
+export default function DocumentUploader({ onProcessing, onSuccess, isExpanded = false }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
 
@@ -73,7 +74,7 @@ export default function DocumentUploader({ onProcessing, onSuccess }: DocumentUp
     }, 2000);
   };
 
-  const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const onDrop = useCallback((e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -90,39 +91,48 @@ export default function DocumentUploader({ onProcessing, onSuccess }: DocumentUp
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto my-6 px-4 pt-4">
-      <div
+    <div
+      className={`w-full transition-all duration-700 ease-in-out flex flex-col justify-center ${
+        isExpanded ? 'flex-1 p-8 h-full' : 'p-6 md:h-[250px]'
+      }`}
+    >
+      <label
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
-        className={`border-[3px] border-dashed rounded-[2rem] p-8 flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden
+        className={`border-[3px] border-dashed rounded-[2rem] flex flex-col items-center justify-center transition-all duration-700 ease-in-out relative w-full h-full cursor-pointer group overflow-hidden
           ${isDragging
-            ? 'border-zinc-800 bg-zinc-50'
-            : 'border-zinc-200 hover:border-zinc-400 bg-white'
-          }`}
+            ? 'border-blue-500/50 bg-[#151518] scale-[1.01]'
+            : 'border-zinc-800/60 hover:border-zinc-700 bg-[#121214]/50 hover:bg-[#121214]/80'
+          }
+          ${isExpanded ? 'p-12' : 'p-8'}
+        `}
       >
+        <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/jpg" className="hidden" onChange={onFileSelect} />
+        
         {queueStatus && (
-          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 transition-opacity duration-300">
-            <Loader2 className="w-10 h-10 text-zinc-900 animate-spin mb-4" />
-            <p className="text-zinc-800 font-bold tracking-tight text-lg font-sans text-center px-4">
+          <div className="absolute inset-0 bg-[#0c0c0e]/90 backdrop-blur-md flex flex-col items-center justify-center z-10 transition-opacity duration-500">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-6" />
+            <p className="text-zinc-100 font-bold tracking-tight text-xl font-sans text-center px-4">
               {queueStatus}
             </p>
           </div>
         )}
 
-        <UploadCloud className={`w-12 h-12 mb-4 ${isDragging ? 'text-zinc-900' : 'text-zinc-300'}`} />
-        <h3 className="text-xl font-black text-zinc-900 tracking-tighter mb-2 text-center">
-          Arraste Documentos Fiscais ou Financeiros
-        </h3>
-        <p className="text-zinc-500 font-medium text-sm text-center mb-6">
-          Suporte: PDF, JPEG, PNG. O Motor Omnívoro extrai recibos, notas da B3 ou a declaração do ano passado.
-        </p>
+        <div className={`transition-all duration-700 ease-in-out flex flex-col items-center justify-center ${isExpanded ? 'scale-125' : 'scale-100'}`}>
+          <UploadCloud className={`transition-colors duration-300 mb-6 group-hover:scale-110 ${isExpanded ? 'w-24 h-24' : 'w-12 h-12'} ${isDragging ? 'text-blue-500' : 'text-zinc-600 group-hover:text-zinc-400'}`} />
+          <h3 className={`font-black tracking-tighter text-center transition-all duration-700 text-zinc-100 ${isExpanded ? 'text-5xl mb-6' : 'text-xl mb-2'}`}>
+            Arraste Documentos Fiscais ou Financeiros
+          </h3>
+          <p className={`text-zinc-500 font-medium text-center transition-all duration-700 ${isExpanded ? 'text-xl mb-12 max-w-2xl' : 'text-sm mb-6 max-w-md'}`}>
+            Suporte: PDF, JPEG, PNG. O Motor Omnívoro extrai recibos, notas da B3 ou a declaração do ano passado.
+          </p>
 
-        <label className="bg-zinc-900 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-zinc-800 transition-colors cursor-pointer shadow-xl shadow-zinc-900/10 active:scale-95">
-          SELECIONAR FICHEIROS
-          <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/jpg" className="hidden" onChange={onFileSelect} />
-        </label>
-      </div>
+          <span className="bg-zinc-100 text-zinc-950 px-10 py-4 rounded-full font-black text-sm tracking-widest transition-all duration-300 shadow-2xl shadow-white/5 uppercase group-hover:bg-white group-hover:scale-105 active:scale-95">
+            Selecionar Ficheiros
+          </span>
+        </div>
+      </label>
     </div>
   );
 }

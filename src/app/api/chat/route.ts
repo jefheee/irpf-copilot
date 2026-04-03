@@ -68,21 +68,21 @@ export async function POST(req: Request) {
     }
 
     // ============================================================================
-    // PASSO 2: EXTRAÇÃO DE ENTIDADES (FORÇANDO MODO JSON)
+    // PASSO 2: EXTRAÇÃO DE ENTIDADES (FORÇANDO MODO JSON CRÍTICO)
     // ============================================================================
     const extractionCompletion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Você é uma máquina de extração analítica JSON. O seu objetivo é extrair valores da afirmação do usuário em estrito formato JSON.
+          content: `Você é uma máquina de extração analítica JSON de precisão militar. O seu objetivo é extrair os valores matemáticos pareando a intenção do usuário com o objeto DADOS FINANCEIROS INJETADOS. Retorne OBRIGATORIAMENTE E APENAS o objeto JSON tipificado (sem markdown, sem \`\`\`json, sem saudações ou explicações). Se não houver valores, retorne zeros.
 Esquema Objeto Retornado Obrigatório:
 {
   "tipo_despesa": string (exato escopo detectado, ex: instrucao, medico, pensao),
-  "valor_bruto": number (quantia bruta em reais sem qualquer redução),
-  "dependentes_envolvidos": number (o número de CPFs dependentes citados que consumiram o valor, ou 1 se nada citado)
+  "valor_bruto": number (quantia bruta localizada no contexto financeiro associado à intenção, 0 se não achar),
+  "dependentes_envolvidos": number (número de CPFs dependentes envolvidos no fato consumado, ou 1 se não citado)
 }`
         },
-        { role: "user", content: message }
+        { role: "user", content: `PERGUNTA DO USUÁRIO:\n${message}\n\nDADOS FINANCEIROS INJETADOS:\n${JSON.stringify(contextData)}` }
       ],
       model: "llama-3.3-70b-versatile",
       temperature: 0,
@@ -92,7 +92,8 @@ Esquema Objeto Retornado Obrigatório:
     let mathContext = "";
     try {
       const rawJson = extractionCompletion.choices[0]?.message?.content || "{}";
-      const parsedData = JSON.parse(rawJson);
+      const cleanedJson = rawJson.replace(/[\x00-\x1F]+/g, ''); // Blindagem Resiliência
+      const parsedData = JSON.parse(cleanedJson);
       const safeData = DespesaSchema.parse(parsedData); // Validado pelo ZOD
 
       // ============================================================================
@@ -113,6 +114,7 @@ Esquema Objeto Retornado Obrigatório:
       }
     } catch (err: any) {
       console.error("[SafeGuard Extração Zod Error]: ", err.message || err);
+      mathContext = `\n[CÁLCULO ATUARIAL DO SISTEMA: Valores e despesas não identificados qualitativamente nos documentos em trânsito. Não foi aplicado cálculo atuarial. Baseie-se apenas em leis genéricas ou denuncie ao usuário a ausência dos valores no arquivo anexado.]\n`;
     }
 
     // ============================================================================

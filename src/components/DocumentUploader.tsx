@@ -118,7 +118,7 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
           </div>
         )}
 
-        <div className={`w-full flex-1 flex flex-col transition-all duration-700 ease-in-out ${isExpanded ? 'justify-center p-8' : 'justify-start pt-12 items-center'}`}>
+        <div className={`w-full flex-1 flex flex-col items-center transition-all duration-700 ease-in-out ${isExpanded ? 'justify-center p-8' : 'justify-start pt-12'}`}>
           <div className={`flex flex-col items-center justify-center w-full max-w-4xl transition-all duration-700 ease-in-out ${isExpanded ? '' : 'mb-8'}`}>
             <UploadCloud className={`transition-colors duration-300 group-hover:scale-110 ${isExpanded ? 'w-24 h-24 mb-6' : 'w-10 h-10 mb-4'} ${isDragging ? 'text-zinc-300' : 'text-zinc-700 group-hover:text-zinc-500'}`} />
             <h3 className={`font-black tracking-tighter text-center transition-all duration-700 text-zinc-100 ${isExpanded ? 'text-4xl md:text-5xl mb-4' : 'text-lg md:text-xl mb-1'}`}>

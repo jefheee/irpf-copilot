@@ -19,7 +19,7 @@ const UniversalDocumentSchema = z.object({
   })).nullable().optional()
 });
 
-const systemPrompt = `És um Auditor Fiscal Rigoroso. Se o documento for um Recibo, Fatura, Contrato de Compra ou Comprovante de Rendimentos, PROÍBO resumos. Deves varrer o documento e povoar o array dados_financeiros_extensos com CADA valor monetário, salário, imposto retido ou bem adquirido (ex: Carros) encontrado no documento.`;
+const systemPrompt = `Você é um Auditor Fiscal sênior. É estritamente proibido resumir ou pular páginas. REGRA DE EXTRAÇÃO PROFUNDA: Varra o documento linha por linha. Para CADA valor monetário (R$), CPF, CNPJ, contrato, veículo, imóvel ou rendimento retido encontrado, você DEVE obrigatoriamente criar uma entrada no array 'dados_financeiros_extensos'. A omissão de dados resultará em falha crítica do sistema de malha fina.`;
 
 export async function POST(req: Request) {
   try {

@@ -6,62 +6,20 @@ const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const UniversalDocumentSchema = z.object({
-  categoria: z.enum(['B3', 'SAUDE', 'EDUCACAO', 'IDENTIFICACAO', 'DECLARACAO_ANTERIOR', 'OUTROS']),
-  descricao_generica: z.string().optional(),
-  data_pregao: z.string().optional(),
-  corretora: z.string().optional(),
-  operacoes: z.array(z.object({
-    ticker: z.string(),
-    tipo: z.enum(['COMPRA', 'VENDA']),
-    classificacao: z.enum(['DAY_TRADE', 'OPERACAO_COMUM']),
-    quantidade: z.number(),
-    preco_unitario: z.number(),
-    valor_total_rateado: z.number()
-  })).optional(),
-  eventos_pendentes: z.boolean().optional(),
-  data_emissao: z.string().optional(),
-  emissor: z.string().optional(),
-  valor_total: z.number().optional(),
-  // Declaracao Anterior Specific
-  dados_declaracao_anterior: z.object({
-    ano_exercicio: z.string().nullable().optional(),
-    total_bens_direitos: z.number().nullable().optional(),
-    dependentes_identificados: z.number().nullable().optional()
+  categoria: z.enum(['B3', 'SAUDE', 'EDUCACAO', 'DECLARACAO_ANTERIOR', 'CONTRATO_VEICULO', 'RENDIMENTOS_RETIDOS', 'OUTROS']),
+  resumo_identificacao: z.object({
+    titular_ou_dependente: z.string().nullable().optional(),
+    cpf_cnpj_envolvido: z.string().nullable().optional(),
   }).optional(),
   dados_financeiros_extensos: z.array(z.object({
-    entidade_ou_ativo: z.string().optional(),
+    entidade_ou_ativo: z.string().nullable().optional(),
     valor_identificado: z.number().nullable().optional(),
-    natureza: z.enum(['AQUISICAO_BEM', 'ALIENACAO_BEM', 'RENDIMENTO_TRIBUTAVEL', 'RENDIMENTO_ISENTO', 'DESPESA', 'IMPOSTO_RETIDO', 'DESCONHECIDO']).catch('DESCONHECIDO').optional(),
+    natureza: z.string().nullable().optional(),
     data_fato_gerador: z.string().nullable().optional()
-  })).optional()
+  })).nullable().optional()
 });
 
-const systemPrompt = `Você é um motor de "Intelligent Document Processing" (IDP) Omnívoro. Especialista em taxonomia fiscal fechada.
-
-OBJETIVO PRINCIPAL: Extrair dados estruturados de qualquer documento financeiro. Retorne ESTRITAMENTE um objeto JSON válido.
-
-HEURÍSTICAS DE CATEGORIZAÇÃO:
-1. B3 (Notas de Corretagem): Extraia as operações. Se encontrar COMPRA E VENDA do MESMO ATIVO na MESMA DATA, é DAY_TRADE. Dilua os custos ("valor_total_rateado"). Alerte "eventos_pendentes" se houver Desdobramento/Grupamento/Bonificação.
-2. DECLARACAO_ANTERIOR: Se o documento for o Recibo ou as Fichas da Declaração de Ajuste Anual do IRPF de anos anteriores (DECLARACAO_ANTERIOR), não procure despesas. Extraia o Ano do Exercício, conte quantos dependentes existem listados e resuma o valor total em Bens e Direitos. O objetivo é criar um mapa base para a declaração atual.
-3. SAUDE / EDUCACAO: Extraia data de emissão, nome do emissor (médico/hospital/escola) e valor total. Adicione uma descricao_generica do serviço.
-4. IDENTIFICACAO: Se for RG/CNH.
-5. OUTROS: Tudo o que não se encaixar.
-
-Se o documento for classificado como OUTROS, DECLARACAO_ANTERIOR ou qualquer outro tipo, DEVES mapear exaustivamente todos os valores monetários, bens, carros, imóveis, CNPJs e salários para dentro do array dados_financeiros_extensos. Não resumas.
-
-O Schema JSON de saída deve sempre incluir "categoria". As chaves de cada categoria (ex: "operacoes" para B3, "dados_declaracao_anterior" para DECLARACAO_ANTERIOR) devem ser preenchidas quando aplicável.
-
-SCHEMA DE SAÍDA BASE (Exemplo da estrutura esperada baseada na categoria):
-{
-  "categoria": "DECLARACAO_ANTERIOR",
-  "descricao_generica": "Resumo da declaração base",
-  "dados_declaracao_anterior": {
-    "ano_exercicio": "2024",
-    "total_bens_direitos": 150000.00,
-    "dependentes_identificados": 3
-  }
-}
-`;
+const systemPrompt = `És um Auditor Fiscal Rigoroso. Se o documento for um Recibo, Fatura, Contrato de Compra ou Comprovante de Rendimentos, PROÍBO resumos. Deves varrer o documento e povoar o array dados_financeiros_extensos com CADA valor monetário, salário, imposto retido ou bem adquirido (ex: Carros) encontrado no documento.`;
 
 export async function POST(req: Request) {
   try {

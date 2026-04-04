@@ -2,8 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createGroq } from '@ai-sdk/groq';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import PDFParser from 'pdf2json';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { B3BrokerageNote } from '../../../types/b3';
 import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b3_guard';
@@ -154,25 +155,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Formato de ficheiro não suportado.' }, { status: 400 });
     }
 
-    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq Vercel AI SDK)
+    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq Vercel AI SDK com generateText)
+    const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
+
     let safeData;
     try {
-      const { object } = await generateObject({
+      const { text } = await generateText({
         model: groq('llama-3.3-70b-versatile'),
-        // @ts-expect-error - The installed version of AI SDK might be missing TS signatures for mode
-        mode: 'json',
-        schema: UniversalDocumentSchema,
-        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Sua tarefa é extrair e estruturar os dados do documento fornecido ESTRITAMENTE de acordo com o JSON Schema. VOCÊ DEVE RESPONDER APENAS EM FORMATO JSON VÁLIDO.`,
+        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Extraia os dados ESTRITAMENTE de acordo com o JSON Schema abaixo.\n\nVOCÊ DEVE RESPONDER APENAS COM UM OBJETO JSON VÁLIDO E PREENCHER TODOS OS CAMPOS ANINHADOS (ex: declaration_data).\n\nSCHEMA:\n${schemaString}`,
         prompt: `Extraia os dados deste documento bruto: \n\n${rawText}`,
         temperature: 0
       });
-      safeData = object;
+
+      // Força o parse seguro do texto retornado pela IA
+      const parsedData = JSON.parse(text);
+      safeData = UniversalDocumentSchema.parse(parsedData);
     } catch (error: any) {
-      console.error("[Groq/Zod SDK Error]:", error);
+      console.error("[Groq/Zod Text Error]:", error);
       if (error.message?.includes('429') || error.message?.toLowerCase().includes('quota')) {
         return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite da API Groq atingido.' }, { status: 429 });
       }
-      return NextResponse.json({ error: 'Falha no processamento.', details: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Falha no processamento JSON/Zod.', details: error.message }, { status: 500 });
     }
 
     let finalResponse: any = safeData;

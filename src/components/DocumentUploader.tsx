@@ -52,9 +52,8 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
 
       } catch (error: any) {
         console.error(`Erro ao processar ${file.name}:`, error);
-        setQueueStatus(`Erro no arquivo ${file.name}. Avançando para o próximo em 2s...`);
-        await new Promise(r => setTimeout(r, 2000));
-        continue; // Passa ao próximo arquivo do for...of
+        setQueueStatus(`Erro no arquivo ${file.name}. (Ignorado)`);
+        continue;
       }
 
       current++;

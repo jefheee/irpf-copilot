@@ -158,9 +158,12 @@ export async function POST(req: Request) {
     let safeData;
     try {
       const { object } = await generateObject({
-        model: groq('llama-3.3-70b-versatile'),
+        // @ts-expect-error - Groq provider might lack typescript definitions for the structuredOutputs config
+        model: groq('llama-3.3-70b-versatile', {
+          structuredOutputs: false
+        }),
         schema: UniversalDocumentSchema,
-        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Sua tarefa é extrair e estruturar os dados do documento fornecido ESTRITAMENTE de acordo com o JSON Schema.`,
+        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Sua tarefa é extrair e estruturar os dados do documento fornecido ESTRITAMENTE de acordo com o JSON Schema. VOCÊ DEVE RESPONDER APENAS EM FORMATO JSON VÁLIDO.`,
         prompt: `Extraia os dados deste documento bruto: \n\n${rawText}`,
         temperature: 0
       });

@@ -50,6 +50,18 @@ const AssetPurchaseSchema = z.object({
   }),
 });
 
+const PreviousDeclarationSchema = z.object({
+  documentType: z.literal('PREVIOUS_DECLARATION'),
+  declaration_data: z.object({
+    ano_exercicio: z.string().nullable().optional(),
+    titular_nome: z.string().nullable().optional(),
+    total_bens_direitos: z.number().nullable().optional(),
+    total_dividas: z.number().nullable().optional(),
+    dependentes_identificados: z.number().nullable().optional(),
+    imposto_retido_total: z.number().nullable().optional()
+  })
+});
+
 const UnknownSchema = z.object({
   documentType: z.literal('UNKNOWN'),
   dados_genericos: z.array(z.object({
@@ -65,6 +77,7 @@ const UniversalDocumentSchema = z.discriminatedUnion('documentType', [
   B3Schema,
   IncomeStatementSchema,
   AssetPurchaseSchema,
+  PreviousDeclarationSchema,
   UnknownSchema,
 ]);
 
@@ -74,6 +87,7 @@ CLASSIFICAÇÃO OBRIGATÓRIA: Escolha apenas UM 'documentType' válido e preench
 2) "INCOME_STATEMENT": Informes de rendimentos de RH. Preencha 'income_data' com CNPJ e Nome da fonte pagadora, rendimentos tributáveis (bruto), imposto de renda retido na fonte e INSS/Previdência deduzida.
 3) "ASSET_PURCHASE": Compra ou venda de bens físicos (ex: veículos). Preencha 'asset_data'. Deduza automaticamente o código RFB correto (Ex: identificar um carro e classificar com código 21). Obtenha cpf/cnpj do vendedor e valor monetário de aquisição pago.
 4) "UNKNOWN": Se for faturas velhas, PDF de cartão ou documentos soltos. Preencha 'dados_genericos'.
+5) "PREVIOUS_DECLARATION": Declaração de Ajuste Anual completa do ano anterior. Extraia evolução patrimonial, dependentes e totais.
 REGRA DE EXTRAÇÃO PROFUNDA: Varra linha por linha para obter valores numéricos corretos.`;
 
 export async function POST(req: Request) {
@@ -100,7 +114,7 @@ export async function POST(req: Request) {
     };
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-pro-preview',
       systemInstruction: systemPrompt,
       generationConfig: {
         temperature: 0,
@@ -134,6 +148,7 @@ export async function POST(req: Request) {
 
       case 'INCOME_STATEMENT':
       case 'ASSET_PURCHASE':
+      case 'PREVIOUS_DECLARATION':
       case 'UNKNOWN':
       default:
         // Outros documentos fluem de forma transparente pro frontend

@@ -2,6 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { B3BrokerageNote } from '../../../types/b3';
+import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b3_guard';
+
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -61,7 +64,43 @@ export async function POST(req: Request) {
     const parsedData = JSON.parse(textResponse);
     const safeData = UniversalDocumentSchema.parse(parsedData);
 
-    return NextResponse.json(safeData);
+    let finalResponse: any = safeData;
+
+    // === INTEGRAÇÃO DEFENSIVA MSLR B3 (MOCK MVP) ===
+    const isB3NoteMock = true; // Temporary flag for testing Day-Trade splits safely
+
+    if (isB3NoteMock) {
+      const mockNote: B3BrokerageNote = {
+        data: "2025-01-10",
+        corretora: "RICO",
+        taxaLiquidacao: 2.50,
+        emolumentos: 1.50,
+        irrf: 0.10,
+        transacoes: [
+          { ticker: "MGLU3", quantidade: 1000, precoUnitario: 2.00, dataOperacao: "2025-01-10", tipoOperacao: "C" },
+          { ticker: "MGLU3", quantidade: 600, precoUnitario: 2.50, dataOperacao: "2025-01-10", tipoOperacao: "V" }
+        ]
+      };
+
+      const dilutedTransactions = diluteFees(mockNote);
+      const matchResult = matchDayTrade(dilutedTransactions);
+
+      // Simulação fake de ganhos
+      const dtGains = 300; // Mockado para fins da TAREFA 3
+      const taxes = calculateTaxes(dtGains, true);
+
+      finalResponse = {
+        ...safeData, // Extrator Universal Intocável
+        b3_math_analysis: {
+          notaBase: mockNote,
+          dayTradesIdentificados: matchResult.dayTrades,
+          swingTradesRemanescentes: matchResult.swingTrades,
+          impostoAplicavelMock: taxes
+        }
+      };
+    }
+
+    return NextResponse.json(finalResponse);
 
   } catch (error: any) {
     console.error("[Extração Error]:", error);

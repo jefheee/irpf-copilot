@@ -53,11 +53,10 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
           onSuccess(data);
           success = true;
 
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Erro ao processar ${file.name}:`, error);
-          setQueueStatus(`Erro no documento ${current}. A avançar...`);
-          await new Promise(r => setTimeout(r, 2000));
-          success = true; // Força avanço pro próximo doc
+          setQueueStatus(`Erro no arquivo ${file.name}: Falha na interpretação. Cancelei.`);
+          break; // Sai do "while (!success)" e avança o "for..of" no ato
         }
       }
 

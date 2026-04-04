@@ -155,8 +155,8 @@ export async function POST(req: Request) {
     }
 
     // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq)
-    // Usamos o zodToJsonSchema para forçar o output JSON restrito
-    const groqSystemPrompt = `${systemPrompt}\n\nDEVOLVA ESTRITAMENTE EM FORMATO JSON OBRIGATÓRIO SEGUINDO ESTE SCHEMA:\n${JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any))}\n\nYou must respond in valid JSON format matching the exact schema provided.`;
+    const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
+    const groqSystemPrompt = `${systemPrompt}\n\nYou are a strict JSON parser. You MUST respond with a valid JSON object that perfectly complies with the following JSON Schema. Do not skip any nested objects. Schema: ${schemaString}`;
 
     let textResponse = '';
     try {

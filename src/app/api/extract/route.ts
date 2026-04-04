@@ -122,11 +122,26 @@ export async function POST(req: Request) {
       },
     });
 
-    const result = await model.generateContent([inlineData, "Extrair dados operacionais deste documento usando schema estrito taxado e union-typed."]);
-    const textResponse = result.response.text();
+    let textResponse = '';
+    try {
+      const result = await model.generateContent([inlineData, "Extrair dados operacionais deste documento usando schema estrito taxado e union-typed."]);
+      textResponse = result.response.text();
+    } catch (apiError: any) {
+      if (apiError.status === 429 || apiError.message?.includes('429') || apiError.message?.toLowerCase().includes('quota')) {
+        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de 2 RPM da API atingido. A tentar novamente...' }, { status: 429 });
+      }
+      throw apiError; // Outros erros da API propagam para o catch principal
+    }
 
-    const parsedData = JSON.parse(textResponse);
-    const safeData = UniversalDocumentSchema.parse(parsedData);
+    let parsedData;
+    let safeData;
+    try {
+      parsedData = JSON.parse(textResponse);
+      safeData = UniversalDocumentSchema.parse(parsedData);
+    } catch (parseError: any) {
+      console.error("[Parse Error]:", parseError);
+      return NextResponse.json({ error: 'Falha no processamento (Parse/Zod) da resposta da IA.', details: parseError.message }, { status: 500 });
+    }
 
     let finalResponse: any = safeData;
 
@@ -161,8 +176,8 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("[Extração Error]:", error);
 
-    if (error.status === 429 || error.message?.includes('429')) {
-      return NextResponse.json({ error: 'Rate limit excedido na API de Inteligência.' }, { status: 429 });
+    if (error.status === 429 || error.message?.includes('429') || error.message?.toLowerCase().includes('quota')) {
+      return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de 2 RPM da API atingido. A tentar novamente...' }, { status: 429 });
     }
 
     return NextResponse.json({ error: 'Falha na avaliação e extração estrutural do documento financeiro.' }, { status: 500 });

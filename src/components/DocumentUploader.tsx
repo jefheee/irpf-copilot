@@ -16,6 +16,7 @@ interface DocumentUploaderProps {
 export default function DocumentUploader({ onProcessing, onSuccess, isExpanded = false, children }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   const processQueue = async (files: File[]) => {
     // ... logic remains standard, I'll rewrite the layout logic below
@@ -46,8 +47,10 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
           });
 
           if (response.status === 429) {
-            setQueueStatus('Limite da IA atingido. Pausando por 40 segundos para arrefecer a rede...');
-            await new Promise(r => setTimeout(r, 40000));
+            setIsRateLimited(true);
+            setQueueStatus('Aguardando Cota da Google (30s)...');
+            await new Promise(r => setTimeout(r, 30000));
+            setIsRateLimited(false);
             setQueueStatus(`Retomando documento ${current} de ${total}...`);
             continue;
           }
@@ -108,11 +111,11 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
         `}
       >
         <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/jpg" className="hidden" onChange={onFileSelect} />
-        
+
         {queueStatus && (
           <div className="absolute inset-0 bg-[#0c0c0e]/95 backdrop-blur-md flex flex-col items-center justify-center z-50 transition-opacity duration-500">
-            <Loader2 className="w-12 h-12 text-zinc-300 animate-spin mb-6" />
-            <p className="text-zinc-100 font-bold tracking-tight text-xl font-sans text-center px-4">
+            <Loader2 className={`w-12 h-12 animate-spin mb-6 ${isRateLimited ? 'text-amber-500' : 'text-zinc-300'}`} />
+            <p className={`font-bold tracking-tight text-xl font-sans text-center px-4 ${isRateLimited ? 'text-amber-500' : 'text-zinc-100'}`}>
               {queueStatus}
             </p>
           </div>

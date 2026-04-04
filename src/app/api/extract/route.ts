@@ -1,12 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import Groq from 'groq-sdk';
+// @ts-expect-error - definitions might not export default, but node resolution does
+import pdfParse from 'pdf-parse';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { B3BrokerageNote } from '../../../types/b3';
 import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b3_guard';
 
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
 // 1. Schemas Isolados (SEM .optional() para misturar contextos)
 const B3Schema = z.object({
@@ -104,33 +109,70 @@ export async function POST(req: Request) {
     }
 
     const arrayBuffer = await documentFile.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    const buffer = Buffer.from(arrayBuffer);
 
-    const inlineData = {
-      inlineData: {
-        data: base64Data,
-        mimeType: documentFile.type
+    let rawText = '';
+
+    // Estágio 1: Extração de Texto Bruto (Dumb OCR/Vision)
+    if (documentFile.type === 'application/pdf') {
+      try {
+        const pdfData = await pdfParse(buffer);
+        rawText = pdfData.text;
+      } catch (pdfError) {
+        console.error("Erro no pdf-parse:", pdfError);
+        return NextResponse.json({ error: 'Falha ao ler o texto do PDF.' }, { status: 500 });
       }
-    };
+    } else if (documentFile.type.startsWith('image/')) {
+      const inlineData = {
+        inlineData: {
+          data: buffer.toString('base64'),
+          mimeType: documentFile.type
+        }
+      };
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3.1-pro-preview',
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        temperature: 0,
-        responseMimeType: 'application/json'
-      },
-    });
+      const visionModel = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: { temperature: 0 },
+      });
+
+      try {
+        const result = await visionModel.generateContent([
+          inlineData,
+          "Transcreva todo o texto presente nesta imagem exatamente como aparece. Não formate, não resuma, apenas extraia o texto bruto."
+        ]);
+        rawText = result.response.text();
+      } catch (visionError: any) {
+        if (visionError.status === 429 || visionError.message?.includes('429')) {
+          return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de visão da Google atingido.' }, { status: 429 });
+        }
+        throw visionError;
+      }
+    } else {
+      return NextResponse.json({ error: 'Formato de ficheiro não suportado.' }, { status: 400 });
+    }
+
+    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq)
+    // Usamos o zodToJsonSchema para forçar o output JSON restrito
+    const groqSystemPrompt = `${systemPrompt}\n\nDEVOLVA ESTRITAMENTE EM FORMATO JSON OBRIGATÓRIO SEGUINDO ESTE SCHEMA:\n${JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any))}`;
 
     let textResponse = '';
     try {
-      const result = await model.generateContent([inlineData, "Extrair dados operacionais deste documento usando schema estrito taxado e union-typed."]);
-      textResponse = result.response.text();
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: groqSystemPrompt },
+          { role: 'user', content: rawText }
+        ],
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0,
+        response_format: { type: 'json_object' }
+      });
+
+      textResponse = chatCompletion.choices[0]?.message?.content || '{}';
     } catch (apiError: any) {
       if (apiError.status === 429 || apiError.message?.includes('429') || apiError.message?.toLowerCase().includes('quota')) {
-        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de 2 RPM da API atingido. A tentar novamente...' }, { status: 429 });
+        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite da API Groq atingido.' }, { status: 429 });
       }
-      throw apiError; // Outros erros da API propagam para o catch principal
+      throw apiError;
     }
 
     let parsedData;

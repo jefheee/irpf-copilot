@@ -16,7 +16,6 @@ interface DocumentUploaderProps {
 export default function DocumentUploader({ onProcessing, onSuccess, isExpanded = false, children }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
-  const [isRateLimited, setIsRateLimited] = useState(false);
 
   const processQueue = async (files: File[]) => {
     // ... logic remains standard, I'll rewrite the layout logic below
@@ -45,15 +44,6 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
             method: 'POST',
             body: formData,
           });
-
-          if (response.status === 429) {
-            setIsRateLimited(true);
-            setQueueStatus('Aguardando Cota da Google (30s)...');
-            await new Promise(r => setTimeout(r, 30000));
-            setIsRateLimited(false);
-            setQueueStatus(`Retomando documento ${current} de ${total}...`);
-            continue;
-          }
 
           if (!response.ok) {
             throw new Error('Falha na extração');
@@ -114,8 +104,8 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
 
         {queueStatus && (
           <div className="absolute inset-0 bg-[#0c0c0e]/95 backdrop-blur-md flex flex-col items-center justify-center z-50 transition-opacity duration-500">
-            <Loader2 className={`w-12 h-12 animate-spin mb-6 ${isRateLimited ? 'text-amber-500' : 'text-zinc-300'}`} />
-            <p className={`font-bold tracking-tight text-xl font-sans text-center px-4 ${isRateLimited ? 'text-amber-500' : 'text-zinc-100'}`}>
+            <Loader2 className="w-12 h-12 text-zinc-300 animate-spin mb-6" />
+            <p className="text-zinc-100 font-bold tracking-tight text-xl font-sans text-center px-4">
               {queueStatus}
             </p>
           </div>

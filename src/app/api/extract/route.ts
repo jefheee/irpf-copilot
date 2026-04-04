@@ -95,7 +95,6 @@ export async function POST(req: Request) {
       model: "gemini-3.1-pro-preview",
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: zodToJsonSchema(UniversalDocumentSchema as any) as any,
       }
     });
 
@@ -103,16 +102,26 @@ export async function POST(req: Request) {
     const arrayBuffer = await documentFile.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString("base64");
 
-    const prompt = `Você é um Auditor Fiscal sênior. Extraia os dados detalhados deste documento anexado. Seja extremamente preciso com valores monetários e tabelas. Você deve preencher o esquema de resposta JSON rigorosamente.
+    const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
 
-    DocumentTypes esperados: B3_NOTE, INCOME_STATEMENT, ASSET_PURCHASE, PREVIOUS_DECLARATION ou UNKNOWN.`;
+    const prompt = `Você é um Auditor Fiscal sênior. Extraia os dados detalhados deste documento anexado. Seja extremamente preciso com valores monetários e tabelas.
+    
+    REGRA ESTRITA: VOCÊ DEVE RESPONDER APENAS E ESTRITAMENTE COM UM OBJETO JSON VÁLIDO QUE SIGA ESTE ESQUEMA EXATO. NÃO INCLUA NADA FORA DO JSON.
+    
+    SCHEMA DE RESPOSTA OBRIGATÓRIO:
+    ${schemaString}`;
 
     const result = await model.generateContent([
       prompt,
       { inlineData: { data: base64Data, mimeType: fileType } }
     ]);
 
-    const responseText = result.response.text();
+    let responseText = result.response.text();
+    // Sanitização contra blocos Markdown
+    responseText = responseText.replace(/```(?:json)?\n?/gi, '').replace(/```\n?/g, '').trim();
+    // Blindagem contra quebras de linha literais em JSON puro
+    responseText = responseText.replace(/[\x00-\x1F]+/g, '');
+    
     const safeData = UniversalDocumentSchema.parse(JSON.parse(responseText));
 
     let finalResponse: any = safeData;

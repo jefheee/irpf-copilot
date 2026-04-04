@@ -104,12 +104,22 @@ export async function POST(req: Request) {
 
     const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
 
-    const prompt = `Você é um Auditor Fiscal sênior. Extraia os dados detalhados deste documento anexado. Seja extremamente preciso com valores monetários e tabelas.
-    
-    REGRA ESTRITA: VOCÊ DEVE RESPONDER APENAS E ESTRITAMENTE COM UM OBJETO JSON VÁLIDO QUE SIGA ESTE ESQUEMA EXATO. NÃO INCLUA NADA FORA DO JSON.
-    
-    SCHEMA DE RESPOSTA OBRIGATÓRIO:
-    ${schemaString}`;
+    const prompt = `Você é um robô extrator de dados JSON.
+A SUA ÚNICA FUNÇÃO É DEVOLVER UM OBJETO JSON VÁLIDO.
+NÃO ESCREVA NENHUM TEXTO, APENAS O JSON.
+
+PASSO 1: Analise o documento anexado.
+PASSO 2: Determine o tipo exato do documento. VOCÊ É OBRIGADO a preencher a chave principal "documentType" com UM dos seguintes valores exatos:
+- "PREVIOUS_DECLARATION" (Se for uma Declaração de Imposto de Renda)
+- "INCOME_STATEMENT" (Se for um Informe de Rendimentos ou Contracheque)
+- "ASSET_PURCHASE" (Se for uma compra de Veículo, Imóvel ou Recibo)
+- "B3_NOTE" (Se for nota de corretagem)
+- "UNKNOWN" (Se não for nada disso)
+
+PASSO 3: Extraia os dados e coloque-os no bloco correto dentro do JSON, seguindo OBRIGATORIAMENTE esta estrutura e preenchendo todos os campos possíveis:
+${schemaString}
+
+Lembre-se: O JSON DEVE TER A CHAVE "documentType" NO PRIMEIRO NÍVEL.`;
 
     const result = await model.generateContent([
       prompt,

@@ -1,17 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createGroq } from '@ai-sdk/groq';
-import { generateText } from 'ai';
-import PDFParser from 'pdf2json';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-
-import { B3BrokerageNote } from '../../../types/b3';
-import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b3_guard';
-
-const apiKey = process.env.GEMINI_API_KEY!;
-const genAI = new GoogleGenerativeAI(apiKey);
-const groq = createGroq({ apiKey: process.env.GROQ_API_KEY! });
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { diluteFees, matchDayTrade } from '../../../lib/guards/b3_guard';
 
 // 1. Schemas Isolados (SEM .optional() para misturar contextos)
 const B3Schema = z.object({
@@ -77,7 +68,7 @@ const UnknownSchema = z.object({
   })).optional()
 });
 
-// 2. União Discriminada (A MÁGICA DO ROTEAMENTO SEGURO)
+// 2. União Discriminada
 const UniversalDocumentSchema = z.discriminatedUnion('documentType', [
   B3Schema,
   IncomeStatementSchema,
@@ -85,15 +76,6 @@ const UniversalDocumentSchema = z.discriminatedUnion('documentType', [
   PreviousDeclarationSchema,
   UnknownSchema,
 ]);
-
-const systemPrompt = `Você é um Auditor Fiscal sênior e um "Smart Router" de extração. É estritamente proibido resumir páginas. 
-CLASSIFICAÇÃO OBRIGATÓRIA: Escolha apenas UM 'documentType' válido e preencha SOMENTE o schema correspondente estrito:
-1) "B3_NOTE": Notas de corretagem na bolsa. Preencha 'b3_data' com cotações corretas, se é compra (C) ou venda (V) e taxas reais.
-2) "INCOME_STATEMENT": Informes de rendimentos de RH. Preencha 'income_data' com CNPJ e Nome da fonte pagadora, rendimentos tributáveis (bruto), imposto de renda retido na fonte e INSS/Previdência deduzida.
-3) "ASSET_PURCHASE": Compra ou venda de bens físicos (ex: veículos). Preencha 'asset_data'. Deduza automaticamente o código RFB correto (Ex: identificar um carro e classificar com código 21). Obtenha cpf/cnpj do vendedor e valor monetário de aquisição pago.
-4) "UNKNOWN": Se for faturas velhas, PDF de cartão ou documentos soltos. Preencha 'dados_genericos'.
-5) "PREVIOUS_DECLARATION": Declaração de Ajuste Anual completa do ano anterior. Extraia evolução patrimonial, dependentes e totais.
-REGRA DE EXTRAÇÃO PROFUNDA: Varra linha por linha para obter valores numéricos corretos.`;
 
 export async function POST(req: Request) {
   try {
@@ -108,110 +90,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'O ficheiro excede o tamanho máximo suportado.' }, { status: 413 });
     }
 
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.1-pro-preview",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: zodToJsonSchema(UniversalDocumentSchema as any) as any,
+      }
+    });
+
+    const fileType = documentFile.type;
     const arrayBuffer = await documentFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = Buffer.from(arrayBuffer).toString("base64");
 
-    let rawText = '';
+    const prompt = `Você é um Auditor Fiscal sênior. Extraia os dados detalhados deste documento anexado. Seja extremamente preciso com valores monetários e tabelas. Você deve preencher o esquema de resposta JSON rigorosamente.
 
-    // Estágio 1: Extração de Texto Bruto (Dumb OCR/Vision)
-    if (documentFile.type === 'application/pdf') {
-      try {
-        rawText = await new Promise((resolve, reject) => {
-          const pdfParser = new (PDFParser as any)(null, 1);
-          pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
-          pdfParser.on("pdfParser_dataReady", () => resolve(pdfParser.getRawTextContent()));
-          pdfParser.parseBuffer(buffer);
-        }) as string;
-      } catch (pdfError) {
-        console.error("Erro no pdf2json:", pdfError);
-        return NextResponse.json({ error: 'Falha ao ler o texto do PDF.' }, { status: 500 });
-      }
-    } else if (documentFile.type.startsWith('image/')) {
-      const inlineData = {
-        inlineData: {
-          data: buffer.toString('base64'),
-          mimeType: documentFile.type
-        }
-      };
+    DocumentTypes esperados: B3_NOTE, INCOME_STATEMENT, ASSET_PURCHASE, PREVIOUS_DECLARATION ou UNKNOWN.`;
 
-      const visionModel = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        generationConfig: { temperature: 0 },
-      });
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: base64Data, mimeType: fileType } }
+    ]);
 
-      try {
-        const result = await visionModel.generateContent([
-          inlineData,
-          "Você é um extrator OCR de alta precisão. Transcreva TODO o texto desta imagem. Se houver tabelas, contas ou formulários, você DEVE preservar o alinhamento visual recriando a estrutura em formato de Tabela Markdown. Não resuma, extraia 100% dos dados brutos."
-        ]);
-        rawText = result.response.text();
-      } catch (visionError: any) {
-        if (visionError.status === 429 || visionError.message?.includes('429')) {
-          return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de visão da Google atingido.' }, { status: 429 });
-        }
-        throw visionError;
-      }
-    } else {
-      return NextResponse.json({ error: 'Formato de ficheiro não suportado.' }, { status: 400 });
-    }
-
-    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq Vercel AI SDK com generateText)
-    const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
-
-    let safeData;
-    try {
-      const { text } = await generateText({
-        model: groq('llama-3.3-70b-versatile'),
-        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Extraia os dados ESTRITAMENTE de acordo com o JSON Schema abaixo.\n\nVOCÊ DEVE RESPONDER APENAS COM UM OBJETO JSON VÁLIDO E PREENCHER TODOS OS CAMPOS ANINHADOS (ex: declaration_data).\n\nSCHEMA:\n${schemaString}`,
-        prompt: `Extraia os dados deste documento bruto: \n\n${rawText}`,
-        temperature: 0
-      });
-
-      // Sanitização agressiva para remover preâmbulos, postâmbulos e blocos markdown
-      let cleanText = text.replace(/```(?:json)?\n?/gi, '').replace(/```\n?/g, '').trim();
-      const firstBrace = cleanText.indexOf('{');
-      const lastBrace = cleanText.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-      }
-
-      // Força o parse seguro do texto retornado pela IA
-      const parsedData = JSON.parse(cleanText);
-      safeData = UniversalDocumentSchema.parse(parsedData);
-    } catch (error: any) {
-      console.error("[Groq/Zod Text Error]:", error);
-      if (error.message?.includes('429') || error.message?.toLowerCase().includes('quota')) {
-        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite da API Groq atingido.' }, { status: 429 });
-      }
-      return NextResponse.json({ error: 'Falha no processamento JSON/Zod.', details: error.message }, { status: 500 });
-    }
+    const responseText = result.response.text();
+    const safeData = UniversalDocumentSchema.parse(JSON.parse(responseText));
 
     let finalResponse: any = safeData;
 
-    // Roteamento Pós-Validação Zod Discriminado
-    switch (safeData.documentType) {
-      case 'B3_NOTE':
-        // Motor Híbrido: Processa Day trades no TS
-        const dilutedTransactions = diluteFees(safeData.b3_data);
-        const matchResult = matchDayTrade(dilutedTransactions);
+    // Roteamento para pós-processamento de regras de negócios
+    if (safeData.documentType === 'B3_NOTE') {
+      const dilutedTransactions = diluteFees(safeData.b3_data);
+      const matchResult = matchDayTrade(dilutedTransactions);
 
-        finalResponse = {
-          ...safeData,
-          b3_math_analysis: {
-            dayTradesIdentificados: matchResult.dayTrades,
-            swingTradesRemanescentes: matchResult.swingTrades
-          }
-        };
-        break;
-
-      case 'INCOME_STATEMENT':
-      case 'ASSET_PURCHASE':
-      case 'PREVIOUS_DECLARATION':
-      case 'UNKNOWN':
-      default:
-        // Outros documentos fluem de forma transparente pro frontend
-        finalResponse = safeData;
-        break;
+      finalResponse = {
+        ...safeData,
+        b3_math_analysis: {
+          dayTradesIdentificados: matchResult.dayTrades,
+          swingTradesRemanescentes: matchResult.swingTrades
+        }
+      };
     }
 
     return NextResponse.json(finalResponse);
@@ -219,10 +136,10 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("[Extração Error]:", error);
 
-    if (error.status === 429 || error.message?.includes('429') || error.message?.toLowerCase().includes('quota')) {
-      return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite de 2 RPM da API atingido. A tentar novamente...' }, { status: 429 });
+    if (error.status === 429 || error.message?.includes('429')) {
+      return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite atingido. A tentar novamente...' }, { status: 429 });
     }
 
-    return NextResponse.json({ error: 'Falha na avaliação e extração estrutural do documento financeiro.' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha na avaliação e extração.', details: error.message }, { status: 500 });
   }
 }

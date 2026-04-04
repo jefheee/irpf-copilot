@@ -3,9 +3,9 @@
 import { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { BadgeAlert, Landmark, Briefcase, Car, AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { FileText, Landmark, Briefcase, Car, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 
-export type PolymorphicDocumentType = 'B3_NOTE' | 'INCOME_STATEMENT' | 'ASSET_PURCHASE' | 'UNKNOWN';
+export type PolymorphicDocumentType = 'B3_NOTE' | 'INCOME_STATEMENT' | 'ASSET_PURCHASE' | 'PREVIOUS_DECLARATION' | 'UNKNOWN';
 
 export interface B3Transaction {
   ticker: string;
@@ -40,8 +40,13 @@ export interface PolymorphicDocument {
     codigo_rfb: number;
     cpf_cnpj_vendedor: string;
     valor_aquisicao: number;
-    descricao_bem: string;
-    placa_registro?: string;
+    descricao: string;
+  };
+  // Previous Declaration
+  declaration_data?: {
+    total_bens_direitos: number;
+    total_dividas: number;
+    dependentes_identificados: number;
   };
   // Unknown
   dados_genericos?: any[];
@@ -54,41 +59,44 @@ interface FinancialWhiteboardProps {
 // FORMATTER HELPER
 const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
+// Minimalist Design Wrapper
+const CardWrapper = ({ children, icon: Icon, title, subtitle }: any) => (
+  <div className="finance-card bg-[#121214] border border-zinc-800 rounded-2xl p-8 transition-colors duration-300 hover:border-zinc-700">
+    <div className="flex gap-6 items-start">
+      <div className="p-4 bg-zinc-900 rounded-xl border border-zinc-800/80 text-zinc-300">
+        <Icon className="w-6 h-6" />
+      </div>
+      <div className="flex-1 w-full">
+        <div className="mb-8">
+          <h3 className="text-xl font-medium text-zinc-100 tracking-tight">{title}</h3>
+          {subtitle && <p className="text-zinc-500 font-mono text-xs mt-2 uppercase tracking-wider">{subtitle}</p>}
+        </div>
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
 const renderIncomeStatement = (doc: PolymorphicDocument, idx: number) => {
   const inc = doc.income_data;
   if (!inc) return null;
   return (
-    <div key={idx} className="finance-card bg-[#0c0c0e]/80 backdrop-blur-2xl border border-zinc-800/60 rounded-3xl p-8 shadow-2xl">
-      <div className="flex gap-6 items-start">
-        <div className="p-5 bg-zinc-900/90 rounded-2xl border border-zinc-800">
-          <Briefcase className="w-8 h-8 text-emerald-500" />
+    <CardWrapper key={idx} icon={Briefcase} title="Informe de Rendimentos" subtitle={`Fonte: ${inc.nome_fonte_pagadora || 'N/A'} (CNPJ: ${inc.cnpj_fonte_pagadora || 'N/A'})`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Rendimentos Tributáveis</p>
+          <p className="text-xl text-zinc-100 font-medium">{formatCurrency(inc.rendimentos_tributaveis || 0)}</p>
         </div>
-        <div className="flex flex-col flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-3xl font-black text-white tracking-tighter uppercase">{inc.nome_fonte_pagadora || 'Fonte Desconhecida'}</h3>
-              <p className="text-zinc-500 font-mono mt-1 tracking-widest text-sm">CNPJ: {inc.cnpj_fonte_pagadora || 'N/A'}</p>
-            </div>
-            <span className="bg-emerald-500/10 text-emerald-500 px-4 py-2 rounded-full text-xs font-bold font-sans tracking-widest border border-emerald-500/20">IRRF DE FONTES</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800/40">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Rendimentos Brutos</p>
-              <p className="text-2xl font-black text-zinc-100">{formatCurrency(inc.rendimentos_tributaveis || 0)}</p>
-            </div>
-            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800/40">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Previdência (INSS)</p>
-              <p className="text-2xl font-black text-rose-400">{formatCurrency(inc.previdencia_oficial || 0)}</p>
-            </div>
-            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800/40">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Imposto Retido</p>
-              <p className="text-2xl font-black text-rose-500">{formatCurrency(inc.imposto_retido || 0)}</p>
-            </div>
-          </div>
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Previdência (INSS)</p>
+          <p className="text-xl text-zinc-300 font-medium">{formatCurrency(inc.previdencia_oficial || 0)}</p>
+        </div>
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Imposto Retido</p>
+          <p className="text-xl text-zinc-300 font-medium">{formatCurrency(inc.imposto_retido || 0)}</p>
         </div>
       </div>
-    </div>
+    </CardWrapper>
   );
 }
 
@@ -96,30 +104,47 @@ const renderAssetPurchase = (doc: PolymorphicDocument, idx: number) => {
   const ast = doc.asset_data;
   if (!ast) return null;
   return (
-    <div key={idx} className="finance-card bg-[#0c0c0e]/80 backdrop-blur-2xl border border-zinc-800/60 rounded-3xl p-8 shadow-2xl">
-      <div className="flex gap-6 items-start">
-        <div className="p-5 bg-zinc-900/90 rounded-2xl border border-zinc-800">
-          <Car className="w-8 h-8 text-blue-500" />
+    <CardWrapper key={idx} icon={Car} title="Aquisição de Bem" subtitle={`Mapeado para Código RFB: ${ast.codigo_rfb || '??'}`}>
+      <div className="space-y-6">
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-1">Descrição</p>
+          <p className="text-base text-zinc-200">{ast.descricao || 'Não informada'}</p>
         </div>
-        <div className="flex flex-col flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-3xl font-black text-white tracking-tighter uppercase">{ast.descricao_bem || 'Bem Identificado'}</h3>
-              <p className="text-zinc-500 font-mono mt-1 tracking-widest text-sm">Vendedor/Outra Parte: {ast.cpf_cnpj_vendedor || 'N/A'}</p>
-              {ast.placa_registro && <p className="text-zinc-400 font-mono mt-1 tracking-widest text-xs">Licenciamento P.L: {ast.placa_registro}</p>}
-            </div>
-            <span className="bg-blue-500/10 text-blue-500 px-4 py-2 rounded-full text-xs font-bold font-sans tracking-widest border border-blue-500/20">CÓDIGO RFB {ast.codigo_rfb || '??'}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Valor de Aquisição</p>
+            <p className="text-xl text-zinc-100 font-medium">{formatCurrency(ast.valor_aquisicao || 0)}</p>
           </div>
-
-          <div className="flex items-center mt-8 bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800/40">
-            <div>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-2">Valor de Aquisição Localizado</p>
-              <p className="text-3xl font-black text-zinc-100">{formatCurrency(ast.valor_aquisicao || 0)}</p>
-            </div>
+          <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">CPF/CNPJ do Vendedor</p>
+            <p className="text-base font-mono text-zinc-300 mt-2">{ast.cpf_cnpj_vendedor || 'N/A'}</p>
           </div>
         </div>
       </div>
-    </div>
+    </CardWrapper>
+  );
+}
+
+const renderPreviousDeclaration = (doc: PolymorphicDocument, idx: number) => {
+  const dec = doc.declaration_data;
+  if (!dec) return null;
+  return (
+    <CardWrapper key={idx} icon={FileText} title="Declaração Anterior" subtitle="Histórico Importado (Ano-Calendário Prévio)">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Bens e Direitos</p>
+          <p className="text-xl text-zinc-100 font-medium">{formatCurrency(dec.total_bens_direitos || 0)}</p>
+        </div>
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Dívidas e Ônus</p>
+          <p className="text-xl text-zinc-300 font-medium">{formatCurrency(dec.total_dividas || 0)}</p>
+        </div>
+        <div className="p-5 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-2">Dependentes</p>
+          <p className="text-xl text-zinc-300 font-medium">{dec.dependentes_identificados || 0}</p>
+        </div>
+      </div>
+    </CardWrapper>
   );
 }
 
@@ -129,98 +154,75 @@ const renderB3Note = (doc: PolymorphicDocument, idx: number) => {
   if (!b3) return null;
 
   return (
-    <div key={idx} className="finance-card bg-[#0c0c0e]/80 backdrop-blur-2xl border border-zinc-800/60 rounded-3xl p-8 shadow-2xl">
-      <div className="flex gap-6 items-start">
-        <div className="p-5 bg-zinc-900/90 rounded-2xl border border-zinc-800">
-          <Landmark className="w-8 h-8 text-indigo-500" />
-        </div>
-        <div className="flex flex-col flex-1">
-          <div className="flex justify-between items-start">
+    <CardWrapper key={idx} icon={Landmark} title="Nota de Corretagem (B3)" subtitle={`${b3.corretora || 'Corretora'} • Data: ${b3.data || 'N/A'}`}>
+      {analysis && (
+        <div className="space-y-8">
+          {/* Day Trades */}
+          {analysis.dayTradesIdentificados && analysis.dayTradesIdentificados.length > 0 && (
             <div>
-              <h3 className="text-3xl font-black text-white tracking-tighter uppercase">{b3.corretora || 'Corretora B3'}</h3>
-              <p className="text-zinc-500 font-sans mt-1 tracking-widest text-sm uppercase">Pregão Data: {b3.data || 'N/A'}</p>
+              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-4 border-b border-zinc-800/60 pb-2">Day Trade (Curtíssimo Prazo)</p>
+              <div className="grid grid-cols-1 gap-3">
+                {analysis.dayTradesIdentificados.map((t, i) => (
+                  <div key={i} className="flex justify-between items-center bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/40">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded bg-zinc-800 text-zinc-300">
+                        {t.tipoOperacao === 'C' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <p className="text-zinc-200 font-medium text-lg">{t.ticker}</p>
+                        <p className="text-zinc-500 text-xs font-mono mt-1 uppercase">{t.tipoOperacao === 'C' ? 'Compra' : 'Venda'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-zinc-300 font-medium">{formatCurrency((t.precoUnitario * t.quantidade))}</p>
+                      <p className="text-zinc-500 text-xs font-mono mt-1">{t.quantidade} cotas a {formatCurrency(t.precoUnitario)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <span className="bg-indigo-500/10 text-indigo-500 px-4 py-2 rounded-full text-xs font-bold font-sans tracking-widest border border-indigo-500/20">RENDA VARIÁVEL</span>
-          </div>
+          )}
 
-          {analysis && (
-            <div className="mt-8 space-y-6">
-              {/* Day Trades */}
-              {analysis.dayTradesIdentificados && analysis.dayTradesIdentificados.length > 0 && (
-                <div>
-                  <p className="text-rose-500 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" /> Operações Day Trade (Curto Prazo - Base 20%)
-                  </p>
-                  <div className="space-y-3">
-                    {analysis.dayTradesIdentificados.map((t, i) => (
-                      <div key={i} className="flex justify-between items-center bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/60">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-xl shadow-inner ${t.tipoOperacao === 'C' ? 'bg-zinc-900 border border-zinc-800 text-zinc-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-500'}`}>
-                            {t.tipoOperacao === 'C' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
-                          </div>
-                          <div>
-                            <p className="text-white font-black tracking-tighter text-xl leading-none">{t.ticker}</p>
-                            <p className="text-zinc-600 text-[10px] font-bold tracking-widest mt-1 uppercase">{t.tipoOperacao === 'C' ? 'Compra' : 'Venda'}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-zinc-300 font-bold tracking-tighter text-lg leading-none">{formatCurrency((t.precoUnitario * t.quantidade))}</p>
-                          <p className="text-zinc-600 text-xs mt-2 font-mono">{t.quantidade} cotas de {formatCurrency(t.precoUnitario)}</p>
-                        </div>
+          {/* Swing Trades */}
+          {analysis.swingTradesRemanescentes && analysis.swingTradesRemanescentes.length > 0 && (
+            <div>
+              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-4 border-b border-zinc-800/60 pb-2">Swing Trade / Custódia</p>
+              <div className="grid grid-cols-1 gap-3">
+                {analysis.swingTradesRemanescentes.map((t, i) => (
+                  <div key={i} className="flex justify-between items-center bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/40">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded bg-zinc-800 text-zinc-300">
+                        {t.tipoOperacao === 'C' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Swing Trades */}
-              {analysis.swingTradesRemanescentes && analysis.swingTradesRemanescentes.length > 0 && (
-                <div className="pt-4 border-t border-zinc-800/50">
-                  <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-3">Custódia Swing Trade</p>
-                  <div className="space-y-3">
-                    {analysis.swingTradesRemanescentes.map((t, i) => (
-                      <div key={i} className="flex justify-between items-center bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/30">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-lg ${t.tipoOperacao === 'C' ? 'bg-zinc-900/50 text-zinc-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                            {t.tipoOperacao === 'C' ? <ArrowDownRight className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                          </div>
-                          <div>
-                            <p className="text-zinc-300 font-black tracking-tighter text-lg leading-none">{t.ticker}</p>
-                            <p className="text-zinc-600 text-[10px] font-bold tracking-widest mt-1 uppercase">{t.tipoOperacao === 'C' ? 'Compra' : 'Venda'}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-zinc-400 font-bold tracking-tighter">{formatCurrency((t.precoUnitario * t.quantidade))}</p>
-                          <p className="text-zinc-600 text-[11px] mt-1 font-mono">{t.quantidade} cotas de {formatCurrency(t.precoUnitario)}</p>
-                        </div>
+                      <div>
+                        <p className="text-zinc-300 font-medium text-lg">{t.ticker}</p>
+                        <p className="text-zinc-500 text-xs font-mono mt-1 uppercase">{t.tipoOperacao === 'C' ? 'Compra' : 'Venda'}</p>
                       </div>
-                    ))}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-zinc-400 font-medium">{formatCurrency((t.precoUnitario * t.quantidade))}</p>
+                      <p className="text-zinc-500 text-xs font-mono mt-1">{t.quantidade} cotas a {formatCurrency(t.precoUnitario)}</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </CardWrapper>
   );
 }
 
 const renderUnknown = (doc: PolymorphicDocument, idx: number) => {
   return (
-    <div key={idx} className="finance-card bg-amber-500/5 backdrop-blur-2xl border border-amber-500/20 rounded-3xl p-8 shadow-2xl">
-      <div className="flex gap-6 items-center">
-        <div className="p-5 bg-amber-500/10 rounded-2xl border border-amber-500/30">
-          <AlertTriangle className="w-8 h-8 text-amber-500" />
-        </div>
-        <div>
-          <h3 className="text-xl font-black text-amber-500 tracking-tighter uppercase">Documento Misto / Suspeito</h3>
-          <p className="text-zinc-400 mt-2 text-sm leading-relaxed max-w-2xl">
-            Tentamos mapear a estrutura fiscal deste documento com o Smart Router (Zod), contudo ele não segue os padrões estritos das notas de Bolsa, Base Extrato de RH ou Veículos/Imóveis. A malha retentora alocou em Categoria Desconhecida para interpretação humana.
-          </p>
-        </div>
+    <CardWrapper key={idx} icon={AlertTriangle} title="Documento Não Mapeado" subtitle="Ausência de Padrão Sistêmico">
+      <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800/50 border-l-2 border-l-zinc-500">
+        <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl">
+          Nenhuma estrutura rígida de Nota, Extrato RH ou Bens Cobertos foi parametrizada para este anexo. As informações contidas ali estarão disponíveis via chat humanizado com o arquiteto fiscal.
+        </p>
       </div>
-    </div>
+    </CardWrapper>
   );
 }
 
@@ -233,8 +235,8 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
       const lastCard = cards[cards.length - 1] as HTMLElement;
 
       gsap.fromTo(lastCard,
-        { y: 30, opacity: 0, scale: 0.95 },
-        { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' }
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
       );
     }
   }, { dependencies: [data], scope: containerRef });
@@ -242,20 +244,21 @@ export default function FinancialWhiteboard({ data }: FinancialWhiteboardProps) 
   if (data.length === 0) return null;
 
   return (
-    <div ref={containerRef} className="w-full flex-1 overflow-y-auto px-8 md:px-12 py-6 custom-scrollbar space-y-6">
-      <div className="flex items-center justify-between mb-10 sticky top-6 bg-[#0c0c0e]/80 backdrop-blur-2xl px-8 py-5 rounded-3xl z-10 border border-zinc-800/80 shadow-2xl">
-        <h2 className="text-sm font-black text-zinc-500 uppercase tracking-[0.3em] font-sans">Supervisão Fiscal Conectada</h2>
-        <span className="bg-zinc-950 text-emerald-500 px-5 py-2 flex items-center gap-2 rounded-full text-xs font-bold font-sans tracking-widest shadow-inner border border-zinc-800/60">
-          <BadgeAlert className="w-4 h-4" />
-          {data.length} DOCUMENTO(S) COMPILADOS
+    <div ref={containerRef} className="w-full flex-1 overflow-y-auto px-6 md:px-10 py-8 custom-scrollbar space-y-8 bg-[#121214]">
+      <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+        <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest font-sans">Mesa de Auditoria</h2>
+        <span className="flex items-center gap-2 text-zinc-300 text-xs font-medium font-sans tracking-wide">
+          <CheckCircle2 className="w-4 h-4 text-zinc-500" />
+          {data.length} PROCESSADO(S)
         </span>
       </div>
 
-      <div className="space-y-6 pb-20">
+      <div className="space-y-6 pb-12">
         {data.map((doc, idx) => {
           switch (doc.documentType) {
             case 'INCOME_STATEMENT': return renderIncomeStatement(doc, idx);
             case 'ASSET_PURCHASE': return renderAssetPurchase(doc, idx);
+            case 'PREVIOUS_DECLARATION': return renderPreviousDeclaration(doc, idx);
             case 'B3_NOTE': return renderB3Note(doc, idx);
             case 'UNKNOWN':
             default:

@@ -136,7 +136,7 @@ export async function POST(req: Request) {
         // Motor Híbrido: Processa Day trades no TS
         const dilutedTransactions = diluteFees(safeData.b3_data);
         const matchResult = matchDayTrade(dilutedTransactions);
-        
+
         finalResponse = {
           ...safeData,
           b3_math_analysis: {

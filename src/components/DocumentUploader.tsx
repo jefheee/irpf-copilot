@@ -37,27 +37,24 @@ export default function DocumentUploader({ onProcessing, onSuccess, isExpanded =
       const formData = new FormData();
       formData.append('document', file);
 
-      let success = false;
-      while (!success) {
-        try {
-          const response = await fetch('/api/extract', {
-            method: 'POST',
-            body: formData,
-          });
+      try {
+        const response = await fetch('/api/extract', {
+          method: 'POST',
+          body: formData,
+        });
 
-          if (!response.ok) {
-            throw new Error('Falha na extração');
-          }
-
-          const data: UniversalDocument = await response.json();
-          onSuccess(data);
-          success = true;
-
-        } catch (error: any) {
-          console.error(`Erro ao processar ${file.name}:`, error);
-          setQueueStatus(`Erro no arquivo ${file.name}: Falha na interpretação. Cancelei.`);
-          break; // Sai do "while (!success)" e avança o "for..of" no ato
+        if (!response.ok) {
+          throw new Error('Falha na extração. Status 500 ou 429.');
         }
+
+        const data: UniversalDocument = await response.json();
+        onSuccess(data);
+
+      } catch (error: any) {
+        console.error(`Erro ao processar ${file.name}:`, error);
+        setQueueStatus(`Erro no arquivo ${file.name}. Avançando para o próximo em 2s...`);
+        await new Promise(r => setTimeout(r, 2000));
+        continue; // Passa ao próximo arquivo do for...of
       }
 
       current++;

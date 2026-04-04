@@ -1,16 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import Groq from 'groq-sdk';
+import { createGroq } from '@ai-sdk/groq';
+import { generateObject } from 'ai';
 import PDFParser from 'pdf2json';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { B3BrokerageNote } from '../../../types/b3';
 import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b3_guard';
 
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY! });
 
 // 1. Schemas Isolados (SEM .optional() para misturar contextos)
 const B3Schema = z.object({
@@ -154,38 +154,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Formato de ficheiro não suportado.' }, { status: 400 });
     }
 
-    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq)
-    const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
-    const groqSystemPrompt = `${systemPrompt}\n\nYou are a strict JSON parser. You MUST respond with a valid JSON object that perfectly complies with the following JSON Schema. Do not skip any nested objects. Schema: ${schemaString}`;
-
-    let textResponse = '';
-    try {
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: groqSystemPrompt },
-          { role: 'user', content: rawText }
-        ],
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0,
-        response_format: { type: 'json_object' }
-      });
-
-      textResponse = chatCompletion.choices[0]?.message?.content || '{}';
-    } catch (apiError: any) {
-      if (apiError.status === 429 || apiError.message?.includes('429') || apiError.message?.toLowerCase().includes('quota')) {
-        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite da API Groq atingido.' }, { status: 429 });
-      }
-      throw apiError;
-    }
-
-    let parsedData;
+    // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq Vercel AI SDK)
     let safeData;
     try {
-      parsedData = JSON.parse(textResponse);
-      safeData = UniversalDocumentSchema.parse(parsedData);
-    } catch (parseError: any) {
-      console.error("[Parse Error]:", parseError);
-      return NextResponse.json({ error: 'Falha no processamento (Parse/Zod) da resposta da IA.', details: parseError.message }, { status: 500 });
+      const { object } = await generateObject({
+        model: groq('llama-3.3-70b-versatile'),
+        schema: UniversalDocumentSchema,
+        system: `${systemPrompt}\n\nVocê é um Auditor Fiscal sênior. Sua tarefa é extrair e estruturar os dados do documento fornecido ESTRITAMENTE de acordo com o JSON Schema.`,
+        prompt: `Extraia os dados deste documento bruto: \n\n${rawText}`,
+        temperature: 0
+      });
+      safeData = object;
+    } catch (error: any) {
+      console.error("[Groq/Zod SDK Error]:", error);
+      if (error.message?.includes('429') || error.message?.toLowerCase().includes('quota')) {
+        return NextResponse.json({ error: 'RATE_LIMIT', message: 'Limite da API Groq atingido.' }, { status: 429 });
+      }
+      return NextResponse.json({ error: 'Falha no processamento.', details: error.message }, { status: 500 });
     }
 
     let finalResponse: any = safeData;

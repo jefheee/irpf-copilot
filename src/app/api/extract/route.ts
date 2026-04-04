@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import Groq from 'groq-sdk';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import PDFParser from 'pdf2json';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { B3BrokerageNote } from '../../../types/b3';
@@ -115,17 +115,14 @@ export async function POST(req: Request) {
     // Estágio 1: Extração de Texto Bruto (Dumb OCR/Vision)
     if (documentFile.type === 'application/pdf') {
       try {
-        const pdfDocument = await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
-        let extractedText = '';
-        for (let i = 1; i <= pdfDocument.numPages; i++) {
-          const page = await pdfDocument.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(' ');
-          extractedText += pageText + '\n';
-        }
-        rawText = extractedText;
+        rawText = await new Promise((resolve, reject) => {
+          const pdfParser = new (PDFParser as any)(null, 1);
+          pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+          pdfParser.on("pdfParser_dataReady", () => resolve(pdfParser.getRawTextContent()));
+          pdfParser.parseBuffer(buffer);
+        }) as string;
       } catch (pdfError) {
-        console.error("Erro no pdfjs-dist:", pdfError);
+        console.error("Erro no pdf2json:", pdfError);
         return NextResponse.json({ error: 'Falha ao ler o texto do PDF.' }, { status: 500 });
       }
     } else if (documentFile.type.startsWith('image/')) {
@@ -144,7 +141,7 @@ export async function POST(req: Request) {
       try {
         const result = await visionModel.generateContent([
           inlineData,
-          "Transcreva todo o texto presente nesta imagem exatamente como aparece. Não formate, não resuma, apenas extraia o texto bruto."
+          "Você é um extrator OCR de alta precisão. Transcreva TODO o texto desta imagem. Se houver tabelas, contas ou formulários, você DEVE preservar o alinhamento visual recriando a estrutura em formato de Tabela Markdown. Não resuma, extraia 100% dos dados brutos."
         ]);
         rawText = result.response.text();
       } catch (visionError: any) {

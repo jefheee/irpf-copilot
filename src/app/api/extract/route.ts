@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const model = genAI.getGenerativeModel({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
       }
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
     responseText = responseText.replace(/```(?:json)?\n?/gi, '').replace(/```\n?/g, '').trim();
     // Blindagem contra quebras de linha literais em JSON puro
     responseText = responseText.replace(/[\x00-\x1F]+/g, '');
-    
+
     const safeData = UniversalDocumentSchema.parse(JSON.parse(responseText));
 
     let finalResponse: any = safeData;

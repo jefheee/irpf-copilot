@@ -8,21 +8,73 @@ import { diluteFees, matchDayTrade, calculateTaxes } from '../../../lib/guards/b
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const UniversalDocumentSchema = z.object({
-  categoria: z.string().nullable().optional(),
-  resumo_identificacao: z.object({
-    titular_ou_dependente: z.string().nullable().optional(),
-    cpf_cnpj_envolvido: z.string().nullable().optional(),
-  }).optional(),
-  dados_financeiros_extensos: z.array(z.object({
+// 1. Schemas Isolados (SEM .optional() para misturar contextos)
+const B3Schema = z.object({
+  documentType: z.literal('B3_NOTE'),
+  b3_data: z.object({
+    data: z.string(),
+    corretora: z.string(),
+    taxaLiquidacao: z.number(),
+    emolumentos: z.number(),
+    irrf: z.number(),
+    transacoes: z.array(z.object({
+      ticker: z.string(),
+      quantidade: z.number(),
+      precoUnitario: z.number(),
+      dataOperacao: z.string(),
+      tipoOperacao: z.enum(['C', 'V']),
+      tipoMercado: z.enum(['Vista', 'Opções', 'Termo']).optional()
+    }))
+  })
+});
+
+const IncomeStatementSchema = z.object({
+  documentType: z.literal('INCOME_STATEMENT'),
+  income_data: z.object({
+    cnpj_fonte_pagadora: z.string().nullable().optional(),
+    nome_fonte_pagadora: z.string().nullable().optional(),
+    rendimentos_tributaveis: z.number().nullable().optional(),
+    imposto_retido: z.number().nullable().optional(),
+    previdencia_oficial: z.number().nullable().optional()
+  }),
+});
+
+const AssetPurchaseSchema = z.object({
+  documentType: z.literal('ASSET_PURCHASE'),
+  asset_data: z.object({
+    codigo_rfb: z.number().nullable().optional(),
+    cpf_cnpj_vendedor: z.string().nullable().optional(),
+    placa_registro: z.string().nullable().optional(),
+    valor_aquisicao: z.number().nullable().optional(),
+    descricao_bem: z.string().nullable().optional()
+  }),
+});
+
+const UnknownSchema = z.object({
+  documentType: z.literal('UNKNOWN'),
+  dados_genericos: z.array(z.object({
     entidade_ou_ativo: z.string().nullable().optional(),
     valor_identificado: z.number().nullable().optional(),
     natureza: z.string().nullable().optional(),
     data_fato_gerador: z.string().nullable().optional()
-  })).nullable().optional()
+  })).optional()
 });
 
-const systemPrompt = `Você é um Auditor Fiscal sênior. É estritamente proibido resumir ou pular páginas. REGRA DE EXTRAÇÃO PROFUNDA: Varra o documento linha por linha. Para CADA valor monetário (R$), CPF, CNPJ, contrato, veículo, imóvel ou rendimento retido encontrado, você DEVE obrigatoriamente criar uma entrada no array 'dados_financeiros_extensos'. A omissão de dados resultará em falha crítica do sistema de malha fina.`;
+// 2. União Discriminada (A MÁGICA DO ROTEAMENTO SEGURO)
+const UniversalDocumentSchema = z.discriminatedUnion('documentType', [
+  B3Schema,
+  IncomeStatementSchema,
+  AssetPurchaseSchema,
+  UnknownSchema,
+]);
+
+const systemPrompt = `Você é um Auditor Fiscal sênior e um "Smart Router" de extração. É estritamente proibido resumir páginas. 
+CLASSIFICAÇÃO OBRIGATÓRIA: Escolha apenas UM 'documentType' válido e preencha SOMENTE o schema correspondente estrito:
+1) "B3_NOTE": Notas de corretagem na bolsa. Preencha 'b3_data' com cotações corretas, se é compra (C) ou venda (V) e taxas reais.
+2) "INCOME_STATEMENT": Informes de rendimentos de RH. Preencha 'income_data' com CNPJ e Nome da fonte pagadora, rendimentos tributáveis (bruto), imposto de renda retido na fonte e INSS/Previdência deduzida.
+3) "ASSET_PURCHASE": Compra ou venda de bens físicos (ex: veículos). Preencha 'asset_data'. Deduza automaticamente o código RFB correto (Ex: identificar um carro e classificar com código 21). Obtenha cpf/cnpj do vendedor e valor monetário de aquisição pago.
+4) "UNKNOWN": Se for faturas velhas, PDF de cartão ou documentos soltos. Preencha 'dados_genericos'.
+REGRA DE EXTRAÇÃO PROFUNDA: Varra linha por linha para obter valores numéricos corretos.`;
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +92,6 @@ export async function POST(req: Request) {
     const arrayBuffer = await documentFile.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
 
-    // Suporte dinâmico para MimeType (PDF e Imagens)
     const inlineData = {
       inlineData: {
         data: base64Data,
@@ -57,47 +108,37 @@ export async function POST(req: Request) {
       },
     });
 
-    const result = await model.generateContent([inlineData, "Extrair dados operacionais e financeiros deste documento via schema taxado."]);
+    const result = await model.generateContent([inlineData, "Extrair dados operacionais deste documento usando schema estrito taxado e union-typed."]);
     const textResponse = result.response.text();
 
-    // Parse direto, pois o modelo usa application/json nativamente
     const parsedData = JSON.parse(textResponse);
     const safeData = UniversalDocumentSchema.parse(parsedData);
 
     let finalResponse: any = safeData;
 
-    // === INTEGRAÇÃO DEFENSIVA MSLR B3 (MOCK MVP) ===
-    const isB3NoteMock = true; // Temporary flag for testing Day-Trade splits safely
+    // Roteamento Pós-Validação Zod Discriminado
+    switch (safeData.documentType) {
+      case 'B3_NOTE':
+        // Motor Híbrido: Processa Day trades no TS
+        const dilutedTransactions = diluteFees(safeData.b3_data);
+        const matchResult = matchDayTrade(dilutedTransactions);
+        
+        finalResponse = {
+          ...safeData,
+          b3_math_analysis: {
+            dayTradesIdentificados: matchResult.dayTrades,
+            swingTradesRemanescentes: matchResult.swingTrades
+          }
+        };
+        break;
 
-    if (isB3NoteMock) {
-      const mockNote: B3BrokerageNote = {
-        data: "2025-01-10",
-        corretora: "RICO",
-        taxaLiquidacao: 2.50,
-        emolumentos: 1.50,
-        irrf: 0.10,
-        transacoes: [
-          { ticker: "MGLU3", quantidade: 1000, precoUnitario: 2.00, dataOperacao: "2025-01-10", tipoOperacao: "C" },
-          { ticker: "MGLU3", quantidade: 600, precoUnitario: 2.50, dataOperacao: "2025-01-10", tipoOperacao: "V" }
-        ]
-      };
-
-      const dilutedTransactions = diluteFees(mockNote);
-      const matchResult = matchDayTrade(dilutedTransactions);
-
-      // Simulação fake de ganhos
-      const dtGains = 300; // Mockado para fins da TAREFA 3
-      const taxes = calculateTaxes(dtGains, true);
-
-      finalResponse = {
-        ...safeData, // Extrator Universal Intocável
-        b3_math_analysis: {
-          notaBase: mockNote,
-          dayTradesIdentificados: matchResult.dayTrades,
-          swingTradesRemanescentes: matchResult.swingTrades,
-          impostoAplicavelMock: taxes
-        }
-      };
+      case 'INCOME_STATEMENT':
+      case 'ASSET_PURCHASE':
+      case 'UNKNOWN':
+      default:
+        // Outros documentos fluem de forma transparente pro frontend
+        finalResponse = safeData;
+        break;
     }
 
     return NextResponse.json(finalResponse);

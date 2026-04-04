@@ -2,8 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import Groq from 'groq-sdk';
-// @ts-expect-error - definitions might not export default, but node resolution does
-import pdfParse from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { B3BrokerageNote } from '../../../types/b3';
@@ -116,10 +115,17 @@ export async function POST(req: Request) {
     // Estágio 1: Extração de Texto Bruto (Dumb OCR/Vision)
     if (documentFile.type === 'application/pdf') {
       try {
-        const pdfData = await pdfParse(buffer);
-        rawText = pdfData.text;
+        const pdfDocument = await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
+        let extractedText = '';
+        for (let i = 1; i <= pdfDocument.numPages; i++) {
+          const page = await pdfDocument.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          extractedText += pageText + '\n';
+        }
+        rawText = extractedText;
       } catch (pdfError) {
-        console.error("Erro no pdf-parse:", pdfError);
+        console.error("Erro no pdfjs-dist:", pdfError);
         return NextResponse.json({ error: 'Falha ao ler o texto do PDF.' }, { status: 500 });
       }
     } else if (documentFile.type.startsWith('image/')) {
@@ -153,7 +159,7 @@ export async function POST(req: Request) {
 
     // Estágio 2: Extração Semântica e Estruturada (Smart Brain via Groq)
     // Usamos o zodToJsonSchema para forçar o output JSON restrito
-    const groqSystemPrompt = `${systemPrompt}\n\nDEVOLVA ESTRITAMENTE EM FORMATO JSON OBRIGATÓRIO SEGUINDO ESTE SCHEMA:\n${JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any))}`;
+    const groqSystemPrompt = `${systemPrompt}\n\nDEVOLVA ESTRITAMENTE EM FORMATO JSON OBRIGATÓRIO SEGUINDO ESTE SCHEMA:\n${JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any))}\n\nYou must respond in valid JSON format matching the exact schema provided.`;
 
     let textResponse = '';
     try {

@@ -167,8 +167,16 @@ export async function POST(req: Request) {
         temperature: 0
       });
 
+      // Sanitização agressiva para remover preâmbulos, postâmbulos e blocos markdown
+      let cleanText = text.replace(/```(?:json)?\n?/gi, '').replace(/```\n?/g, '').trim();
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+      }
+
       // Força o parse seguro do texto retornado pela IA
-      const parsedData = JSON.parse(text);
+      const parsedData = JSON.parse(cleanText);
       safeData = UniversalDocumentSchema.parse(parsedData);
     } catch (error: any) {
       console.error("[Groq/Zod Text Error]:", error);

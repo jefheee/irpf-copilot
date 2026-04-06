@@ -13,12 +13,15 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Prevenção Global de Prototype Pollution no motor V8
+Object.freeze(Object.prototype);
+
 // Schema rigoroso para extração de variáveis contáveis do usuário
 const DespesaSchema = z.object({
   tipo_despesa: z.string(),
   valor_bruto: z.number(),
   dependentes_envolvidos: z.number()
-});
+}).strict();
 
 export async function POST(req: Request) {
   try {

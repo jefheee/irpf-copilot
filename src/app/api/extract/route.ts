@@ -4,6 +4,20 @@ import { z } from 'zod';
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { diluteFees, matchDayTrade } from '../../../lib/guards/b3_guard';
 
+// TAREFA 3: Prevenção Global de Prototype Pollution no motor V8 do Node.js
+Object.freeze(Object.prototype);
+
+// TAREFA 2: Middleware "Poison-Pill"
+// Utility para remover caracteres de controlo invisíveis e instruções ocultas de Prompt Injection
+export function sanitizeRawText(text: string): string {
+  if (!text) return text;
+  // Remove caracteres de controlo e Unicode suspeito (U+E0000 a U+E007F)
+  let sanitized = text.replace(/[\x00-\x1F\u{E0000}-\u{E007F}]/gu, '');
+  // Remove comandos de bypass disfarçados
+  sanitized = sanitized.replace(/^(?:System:|Instruction:|Ignore all previous).*$/gim, '');
+  return sanitized;
+}
+
 // 1. Schemas Isolados (SEM .optional() para misturar contextos)
 const B3Schema = z.object({
   documentType: z.literal('B3_NOTE'),
@@ -20,9 +34,9 @@ const B3Schema = z.object({
       dataOperacao: z.string(),
       tipoOperacao: z.enum(['C', 'V']),
       tipoMercado: z.enum(['Vista', 'Opções', 'Termo']).optional()
-    }))
-  })
-});
+    }).strict())
+  }).strict()
+}).strict();
 
 const IncomeStatementSchema = z.object({
   documentType: z.literal('INCOME_STATEMENT'),
@@ -32,8 +46,8 @@ const IncomeStatementSchema = z.object({
     rendimentos_tributaveis: z.number().nullable().optional(),
     imposto_retido: z.number().nullable().optional(),
     previdencia_oficial: z.number().nullable().optional()
-  }),
-});
+  }).strict(),
+}).strict();
 
 const AssetPurchaseSchema = z.object({
   documentType: z.literal('ASSET_PURCHASE'),
@@ -43,8 +57,8 @@ const AssetPurchaseSchema = z.object({
     placa_registro: z.string().nullable().optional(),
     valor_aquisicao: z.number().nullable().optional(),
     descricao_bem: z.string().nullable().optional()
-  }),
-});
+  }).strict(),
+}).strict();
 
 const PreviousDeclarationSchema = z.object({
   documentType: z.literal('PREVIOUS_DECLARATION'),
@@ -55,8 +69,8 @@ const PreviousDeclarationSchema = z.object({
     total_dividas: z.number().nullable().optional(),
     dependentes_identificados: z.number().nullable().optional(),
     imposto_retido_total: z.number().nullable().optional()
-  })
-});
+  }).strict()
+}).strict();
 
 const UnknownSchema = z.object({
   documentType: z.literal('UNKNOWN'),
@@ -65,8 +79,8 @@ const UnknownSchema = z.object({
     valor_identificado: z.number().nullable().optional(),
     natureza: z.string().nullable().optional(),
     data_fato_gerador: z.string().nullable().optional()
-  })).optional()
-});
+  }).strict()).optional()
+}).strict();
 
 // 2. União Discriminada
 const UniversalDocumentSchema = z.discriminatedUnion('documentType', [
@@ -100,7 +114,14 @@ export async function POST(req: Request) {
 
     const fileType = documentFile.type;
     const arrayBuffer = await documentFile.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString("base64");
+    let base64Data = Buffer.from(arrayBuffer).toString("base64");
+
+    // TAREFA 2: Middleware "Poison-Pill" - Aplicado ao rawText antes de injetar
+    if (fileType.includes("text/")) {
+      let rawText = Buffer.from(arrayBuffer).toString("utf-8");
+      rawText = sanitizeRawText(rawText);
+      base64Data = Buffer.from(rawText, "utf-8").toString("base64");
+    }
 
     const schemaString = JSON.stringify(zodToJsonSchema(UniversalDocumentSchema as any));
 

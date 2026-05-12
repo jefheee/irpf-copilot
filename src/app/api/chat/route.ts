@@ -14,7 +14,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Prevenção Global de Prototype Pollution no motor V8
-Object.freeze(Object.prototype);
+// Removido: Object.freeze(Object.prototype) quebra o build do Next.js (Turbopack/Webpack)
 
 // Schema rigoroso para extração de variáveis contáveis do usuário
 const DespesaSchema = z.object({

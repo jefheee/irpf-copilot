@@ -1,33 +1,46 @@
-export interface Operation {
-  ticker: string;
-  tipo: 'COMPRA' | 'VENDA';
-  classificacao: 'DAY_TRADE' | 'OPERACAO_COMUM';
-  quantidade: number;
-  preco_unitario: number;
-  valor_total_rateado: number;
-}
+export type UniversalDocumentType = 'B3_NOTE' | 'INCOME_STATEMENT' | 'ASSET_PURCHASE' | 'PREVIOUS_DECLARATION' | 'UNKNOWN';
 
-export type DocumentCategory = 'B3' | 'SAUDE' | 'EDUCACAO' | 'DECLARACAO_ANTERIOR' | 'CONTRATO_VEICULO' | 'RENDIMENTOS_RETIDOS' | 'OUTROS';
+export interface B3Transaction {
+  ticker: string;
+  quantidade: number;
+  precoUnitario: number;
+  dataOperacao: string;
+  tipoOperacao: 'C' | 'V';
+  tipoMercado?: string;
+}
 
 export interface UniversalDocument {
-  categoria?: string | null;
-  resumo_identificacao?: {
-    titular_ou_dependente?: string | null;
-    cpf_cnpj_envolvido?: string | null;
+  documentType: UniversalDocumentType;
+  // B3 Note
+  b3_data?: {
+    data: string;
+    corretora: string;
   };
-  dados_financeiros_extensos?: {
-    entidade_ou_ativo?: string | null;
-    valor_identificado?: number | null;
-    natureza?: string | null;
-    data_fato_gerador?: string | null;
-  }[] | null;
-}
-
-// Retro-compatibility (or alias) for the old B3 struct used downstream
-export interface BrokerageNote extends UniversalDocument {
-  categoria: 'B3';
-  data_pregao: string;
-  corretora: string;
-  operacoes: Operation[];
-  eventos_pendentes: boolean;
+  b3_math_analysis?: {
+    dayTradesIdentificados: B3Transaction[];
+    swingTradesRemanescentes: B3Transaction[];
+  };
+  // Income Statement
+  income_data?: {
+    cnpj_fonte_pagadora: string;
+    nome_fonte_pagadora: string;
+    rendimentos_tributaveis: number;
+    imposto_retido: number;
+    previdencia_oficial: number;
+  };
+  // Asset
+  asset_data?: {
+    codigo_rfb: number;
+    cpf_cnpj_vendedor: string;
+    valor_aquisicao: number;
+    descricao: string;
+  };
+  // Previous Declaration
+  declaration_data?: {
+    total_bens_direitos: number;
+    total_dividas: number;
+    dependentes_identificados: number;
+  };
+  // Unknown
+  dados_genericos?: any[];
 }

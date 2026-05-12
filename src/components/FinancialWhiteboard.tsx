@@ -4,56 +4,10 @@ import { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { FileText, Landmark, Briefcase, Car, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
-
-export type PolymorphicDocumentType = 'B3_NOTE' | 'INCOME_STATEMENT' | 'ASSET_PURCHASE' | 'PREVIOUS_DECLARATION' | 'UNKNOWN';
-
-export interface B3Transaction {
-  ticker: string;
-  quantidade: number;
-  precoUnitario: number;
-  dataOperacao: string;
-  tipoOperacao: 'C' | 'V';
-  tipoMercado?: string;
-}
-
-export interface PolymorphicDocument {
-  documentType: PolymorphicDocumentType;
-  // B3 Note
-  b3_data?: {
-    data: string;
-    corretora: string;
-  };
-  b3_math_analysis?: {
-    dayTradesIdentificados: B3Transaction[];
-    swingTradesRemanescentes: B3Transaction[];
-  };
-  // Income Statement
-  income_data?: {
-    cnpj_fonte_pagadora: string;
-    nome_fonte_pagadora: string;
-    rendimentos_tributaveis: number;
-    imposto_retido: number;
-    previdencia_oficial: number;
-  };
-  // Asset
-  asset_data?: {
-    codigo_rfb: number;
-    cpf_cnpj_vendedor: string;
-    valor_aquisicao: number;
-    descricao: string;
-  };
-  // Previous Declaration
-  declaration_data?: {
-    total_bens_direitos: number;
-    total_dividas: number;
-    dependentes_identificados: number;
-  };
-  // Unknown
-  dados_genericos?: any[];
-}
+import { UniversalDocument } from '../types/finance';
 
 interface FinancialWhiteboardProps {
-  data: PolymorphicDocument[];
+  data: UniversalDocument[];
 }
 
 // FORMATTER HELPER
@@ -77,7 +31,7 @@ const CardWrapper = ({ children, icon: Icon, title, subtitle }: any) => (
   </div>
 );
 
-const renderIncomeStatement = (doc: PolymorphicDocument, idx: number) => {
+const renderIncomeStatement = (doc: UniversalDocument, idx: number) => {
   const inc = doc.income_data;
   if (!inc) return null;
   return (
@@ -100,7 +54,7 @@ const renderIncomeStatement = (doc: PolymorphicDocument, idx: number) => {
   );
 }
 
-const renderAssetPurchase = (doc: PolymorphicDocument, idx: number) => {
+const renderAssetPurchase = (doc: UniversalDocument, idx: number) => {
   const ast = doc.asset_data;
   if (!ast) return null;
   return (
@@ -125,7 +79,7 @@ const renderAssetPurchase = (doc: PolymorphicDocument, idx: number) => {
   );
 }
 
-const renderPreviousDeclaration = (doc: PolymorphicDocument, idx: number) => {
+const renderPreviousDeclaration = (doc: UniversalDocument, idx: number) => {
   const dec = doc.declaration_data;
   if (!dec) return null;
   return (
@@ -148,7 +102,7 @@ const renderPreviousDeclaration = (doc: PolymorphicDocument, idx: number) => {
   );
 }
 
-const renderB3Note = (doc: PolymorphicDocument, idx: number) => {
+const renderB3Note = (doc: UniversalDocument, idx: number) => {
   const b3 = doc.b3_data;
   const analysis = doc.b3_math_analysis;
   if (!b3) return null;
@@ -214,7 +168,7 @@ const renderB3Note = (doc: PolymorphicDocument, idx: number) => {
   );
 }
 
-const renderUnknown = (doc: PolymorphicDocument, idx: number) => {
+const renderUnknown = (doc: UniversalDocument, idx: number) => {
   return (
     <CardWrapper key={idx} icon={AlertTriangle} title="Documento Não Mapeado" subtitle="Ausência de Padrão Sistêmico">
       <div className="bg-zinc-900/50 p-5 rounded-xl border border-zinc-800/50 border-l-2 border-l-zinc-500">

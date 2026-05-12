@@ -5,7 +5,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { diluteFees, matchDayTrade } from '../../../lib/guards/b3_guard';
 
 // TAREFA 3: Prevenção Global de Prototype Pollution no motor V8 do Node.js
-Object.freeze(Object.prototype);
+// Removido: Object.freeze(Object.prototype) quebra o build do Next.js (Turbopack/Webpack)
 
 // TAREFA 2: Middleware "Poison-Pill"
 // Utility para remover caracteres de controlo invisíveis e instruções ocultas de Prompt Injection

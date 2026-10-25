@@ -1,64 +1,61 @@
-# 🦁 IRPF Copilot 2026: O seu Assistente Pessoal e Cofre Digital
+# 🦁 IRPF Copilot 2026: Your Personal Assistant and Digital Vault
 
-O **IRPF Copilot 2026** é uma aplicação inteligente desenvolvida para acabar com a ansiedade e a complexidade na hora de prestar contas ao Leão. Operando sob uma arquitetura Multi-Agente, o sistema ingere documentos brutos (PDFs, fotos de recibos, contratos) e gera um **Plano de Preenchimento** exato para ser espelhado no software oficial da Receita Federal.
+**IRPF Copilot 2026** is an intelligent application developed to end the anxiety and complexity when accounting to the "Lion" (Brazilian IRS). Operating under a Multi-Agent architecture, the system ingests raw documents (PDFs, photos of receipts, contracts) and generates an exact **Filing Plan** to be mirrored in the official Federal Revenue software.
 
------
+---
 
-## 🎯 A História e o Propósito do Projeto
+## 🎯 The History and Purpose of the Project
 
-Este projeto nasceu de uma dor pessoal e familiar. Todo ano, eu me via ajudando pessoas próximas a preencherem suas declarações. O processo era sempre caótico: dezenas de recibos médicos amassados, contratos de compra e venda de veículos ilegíveis e a dúvida constante sobre *onde* colocar cada informação no software do governo.
+This project was born from a personal and family pain. Every year, I found myself helping close people fill out their tax returns. The process was always chaotic: dozens of crumpled medical receipts, illegible vehicle purchase and sale contracts, and the constant doubt about *where* to put each piece of information in the government software.
 
-A ideia inicial era simples: construir um "Cofre Digital" onde o usuário joga qualquer documento, e a IA diz o que fazer. No entanto, após uma pesquisa profunda de mercado e análise de concorrentes, percebi que os LLMs (Large Language Models) comuns falham miseravelmente em duas coisas: **matemática exata** e **leis tributárias**.
+The initial idea was simple: build a "Digital Vault" where the user throws in any document, and the AI tells them what to do. However, after deep market research and competitor analysis, I realized that common LLMs (Large Language Models) fail miserably at two things: **exact math** and **tax laws**.
 
-Para resolver isso e transformar a ferramenta em um verdadeiro **Auditor Bidirecional**, o projeto escalou. Implementei um RAG (Retrieval-Augmented Generation) alimentado diretamente pelos **manuais de uso oficiais do software do IRPF do ano** e legislações vigentes, além de uma arquitetura que separa o raciocínio da matemática.
+To solve this and turn the tool into a true **Bidirectional Auditor**, the project scaled. I implemented a RAG (Retrieval-Augmented Generation) powered directly by the **official user manuals of the year's IRPF software** and current legislation, alongside an architecture that separates reasoning from mathematics.
 
-### 🛑 O Problema (A Fraqueza das IAs Tradicionais)
+### 🛑 The Problem (The Weakness of Traditional AIs)
 
-  * **Alucinação Jurídica (Knowledge Leakage):** IAs puras inventam deduções baseadas em senso comum, colocando o usuário em risco de malha fina.
-  * **Cálculos Probabilísticos:** IAs erram contas básicas. Um teto de dedução não pode ser "aproximadamente" R$ 3.561,50.
-  * **Extração Superficial:** Ferramentas comuns leem apenas o título de um contrato, ignorando o valor da transação, a data e os CPFs envolvidos.
+* **Legal Hallucination (Knowledge Leakage):** Pure AIs invent deductions based on common sense, putting the user at risk of falling into the tax audit net (malha fina).
+* **Probabilistic Calculations:** AIs fail basic math. A deduction ceiling cannot be "approximately" R$ 3,561.50.
+* **Superficial Extraction:** Common tools only read a contract's title, ignoring the transaction amount, date, and involved CPFs (taxpayer IDs).
 
-### ✨ A Solução (O Motor Copilot)
+### ✨ The Solution (The Copilot Engine)
 
-  * **RAG Especializado e Blindado:** A base de conhecimento (Supabase/pgvector) é alimentada com o manual do programa do IRPF e leis. Usamos scripts em *Cheerio* para higienizar textos governamentais, removendo parágrafos tachados ou revogados antes da vetorização.
-  * **Motor Omnívoro (Cérebro 1 - Visão):** Utilização do `gemini-2.5-flash` em Modo JSON estrito. Ele ingere Fichas de Declarações Anteriores, recibos médicos e faturas, mapeando exaustivamente valores no nó `dados_financeiros_extensos`. *(Nota: A arquitetura possui taxonomia preditiva para notas de corretagem da B3, prontas para testes futuros).*
-  * **MSLR (Multi-Step Legal Reasoning):** O Cérebro 2 (Groq/Llama-3.3) apenas extrai a intenção. A validação matemática (as "travas" da lei) ocorre puramente no TypeScript (`deduction_guard.ts`), devolvendo à IA o valor seguro para aconselhar o usuário.
+* **Specialized and Shielded RAG:** The knowledge base (Supabase/pgvector) is fed with the IRPF program manual and laws. We use *Cheerio* scripts to sanitize government texts, removing crossed-out or revoked paragraphs before vectorization.
+* **Omnivorous Engine (Brain 1 - Vision):** Utilization of `gemini-2.5-flash` in strict JSON Mode. It ingests Previous Return Forms, medical receipts, and invoices, exhaustively mapping values into the `dados_financeiros_extensos` node. *(Note: The architecture has a predictive taxonomy for B3 brokerage notes, ready for future testing).*
+* **MSLR (Multi-Step Legal Reasoning):** Brain 2 (Groq/Llama-3.3) only extracts intent. The mathematical validation (the law's "locks") occurs purely in TypeScript (`deduction_guard.ts`), returning the safe value for the AI to advise the user.
 
------
+---
 
-## 🔬 Pesquisa e Engenharia de Software (Standing on Shoulders of Giants)
+## 🔬 Research and Software Engineering (Standing on Shoulders of Giants)
 
-A arquitetura do IRPF Copilot não foi construída baseada em achismos. Realizamos um *deep dive* em repositórios e *frameworks* globais de Tax-Tech para extrair as melhores abordagens de engenharia:
+The architecture of IRPF Copilot was not built on guesswork. We performed a *deep dive* into global Tax-Tech repositories and frameworks to extract the best engineering approaches:
 
-  * **Inspirado pelo `QWED-Tax`:** Adotamos o padrão arquitetural que fragmenta a transação em motores dedicados, blindando o sistema contra alucinações matemáticas (a origem do nosso MSLR).
-  * **Inspirado pelo `Rag-Tax-Helper`:** Implementamos a lógica de *Query Rewriting* e sanitização de dados governamentais para garantir que a busca vetorial (pgvector) traga apenas a lei vigente.
-  * **Otimização de I/O (`Nota-de-corretagem-to-csv`):** Estruturação do envio de binários densos (PDFs/Imagens) convertendo-os nativamente para Base64 na memória do Next.js, evitando o bloqueio da interface do usuário.
-  * **Sessões e Estado (`AI-tax-agent` / `TaxEase.AI`):** Adoção de Server-Sent Events (SSE) para manter o estado da sessão fluido, trocando o modelo antigo de *spinners* de carregamento por um fluxo contínuo de dados.
+* **Inspired by `QWED-Tax`:** We adopted the architectural pattern that fragments the transaction into dedicated engines, shielding the system against mathematical hallucinations (the origin of our MSLR).
+* **Inspired by `Rag-Tax-Helper`:** We implemented *Query Rewriting* logic and government data sanitization to ensure that vector search (pgvector) only retrieves current law.
+* **I/O Optimization (`Nota-de-corretagem-to-csv`):** Structuring the sending of dense binaries (PDFs/Images) by converting them natively to Base64 in Next.js memory, avoiding UI blocking.
+* **Sessions and State (`AI-tax-agent` / `TaxEase.AI`):** Adoption of Server-Sent Events (SSE) to keep the session state fluid, replacing the old loading *spinners* model with a continuous data stream.
 
------
+---
 
-## 📸 Preview do Projeto (Cockpit Split-Screen)
+## 📸 Project Preview (Split-Screen Cockpit)
 
-O design foi projetado com foco absoluto em IHC (Interação Humano-Computador). Para eliminar a fadiga cognitiva (*Context Switching*), adotamos a tela dividida: de um lado a conversa, do outro os dados.
+The design was projected with an absolute focus on HCI (Human-Computer Interaction). To eliminate cognitive fatigue (*Context Switching*), we adopted the split-screen: conversation on one side, data on the other.
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cf8c7928-1424-4768-97b1-98e092258673" />
+---
 
+## 🚀 Features and UI/UX Implemented
 
------
+* [x] **Stateful Whiteboard (Split-Screen):** Clean monochromatic panel. Chat on the left (40%), Extracted Documents Board on the right (60%).
+* [x] **Omnivorous Uploader with Backoff:** Support for PDF and Image *Drag & Drop*. Smart queueing system (`for...of`) with *throttling* (automatic pause) to bypass the `429 Too Many Requests` limit of the Gemini API Free Tier, without failing silently.
+* [x] **Deep Financial Extraction:** The Zod Schema forces the AI to scan each document looking for `entidade_ou_ativo`, `valor_identificado`, and `natureza` (Acquisition, Alienation, Withheld Tax, etc.).
+* [x] **Native Stream (SSE):** Brain 2 "types" the answer in real-time on the screen, respecting line breaks and Markdown formatting.
+* [x] **Fluid Animations (GSAP):** With each new processed document, the operation "Cards" smoothly appear on the panel, conveying the feeling of a live audit happening.
 
-## 🚀 Funcionalidades e UI/UX Implementadas
+---
 
-  - [x] **Stateful Whiteboard (Split-Screen):** Painel monocromático limpo. Chat à esquerda (40%), Quadro de Documentos Extraídos à direita (60%).
-  - [x] **Uploader Omnívoro com Backoff:** Suporte a *Drag & Drop* de PDFs e Imagens. Sistema de fila (`for...of`) inteligente com *throttling* (pausa automática) para contornar o limite de `429 Too Many Requests` do Free Tier da API do Gemini, sem falhar silenciosamente.
-  - [x] **Extração Financeira Profunda:** O Zod Schema obriga a IA a varrer cada documento buscando `entidade_ou_ativo`, `valor_identificado`, e `natureza` (Aquisição, Alienação, Imposto Retido, etc.).
-  - [x] **Stream Nativo (SSE):** O Cérebro 2 "digita" a resposta em tempo real na tela, respeitando quebras de linha e formatação Markdown.
-  - [x] **Animações Fluidas (GSAP):** A cada novo documento processado, os "Cards" de operações surgem no painel com suavidade, transmitindo a sensação de uma auditoria acontecendo ao vivo.
+## 📁 Modular Architecture
 
------
-
-## 📁 Arquitetura Modular
-
-A estrutura reflete a blindagem entre Visão Computacional, Raciocínio (LLM) e Determinismo (TypeScript):
+The structure reflects the shielding between Computer Vision, Reasoning (LLM), and Determinism (TypeScript):
 
 ```text
 📦 irpf-copilot
@@ -67,92 +64,100 @@ A estrutura reflete a blindagem entre Visão Computacional, Raciocínio (LLM) e 
  ┃ ┣ 📂 app
  ┃ ┃ ┣ 📂 api
  ┃ ┃ ┃ ┣ 📂 chat
- ┃ ┃ ┃ ┃ ┗ 📜 route.ts        # Cérebro 2: RAG, MSLR Interception e SSE Stream
+ ┃ ┃ ┃ ┃ ┗ 📜 route.ts        # Brain 2: RAG, MSLR Interception and SSE Stream
  ┃ ┃ ┃ ┣ 📂 extract
- ┃ ┃ ┃ ┃ ┗ 📜 route.ts        # Cérebro 1: Motor Omnívoro (Gemini 2.5 Flash)
+ ┃ ┃ ┃ ┃ ┗ 📜 route.ts        # Brain 1: Omnivorous Engine (Gemini 2.5 Flash)
  ┃ ┃ ┃ ┗ 📂 ingest
- ┃ ┃ ┃   ┗ 📜 route.ts        # Ingestão de Leis e Manuais do IRPF (pgvector)
+ ┃ ┃ ┃   ┗ 📜 route.ts        # Ingestion of IRPF Laws and Manuals (pgvector)
  ┃ ┃ ┣ 📜 globals.css         # Tailwind v4
  ┃ ┃ ┣ 📜 layout.tsx
- ┃ ┃ ┗ 📜 page.tsx            # Ponto de entrada do Cockpit
+ ┃ ┃ ┗ 📜 page.tsx            # Cockpit entry point
  ┃ ┣ 📂 components
- ┃ ┃ ┣ 📜 ChatPanel.tsx       # UI de Conversa
- ┃ ┃ ┣ 📜 DocumentUploader.tsx# Fila de Uploads Multi-formato
- ┃ ┃ ┗ 📜 FinancialWhiteboard.tsx # Renderizador de Cards de Dados
+ ┃ ┃ ┣ 📜 ChatPanel.tsx       # Conversation UI
+ ┃ ┃ ┣ 📜 DocumentUploader.tsx# Multi-format Upload Queue
+ ┃ ┃ ┗ 📜 FinancialWhiteboard.tsx # Data Cards Renderer
  ┃ ┣ 📂 hooks
- ┃ ┃ ┗ 📜 useChatStream.ts    # Fetch API nativa para ler o stream (Uint8Array)
+ ┃ ┃ ┗ 📜 useChatStream.ts    # Native Fetch API to read the stream (Uint8Array)
  ┃ ┣ 📂 lib
  ┃ ┃ ┣ 📂 constants
- ┃ ┃ ┃ ┗ 📜 tax_limits.ts     # Única fonte de verdade para números (ex: 3561.50)
+ ┃ ┃ ┃ ┗ 📜 tax_limits.ts     # Single source of truth for numbers (e.g., 3561.50)
  ┃ ┃ ┗ 📂 guards
- ┃ ┃   ┗ 📜 deduction_guard.ts# A "Alfândega" Matemática (Motor TS)
+ ┃ ┃   ┗ 📜 deduction_guard.ts# The Mathematical "Customs" (TS Engine)
  ┃ ┣ 📂 scripts
- ┃ ┃ ┗ 📜 sanitize_laws.ts    # Limpeza de HTML/DOM governamental
+ ┃ ┃ ┗ 📜 sanitize_laws.ts    # Government HTML/DOM cleanup
  ┃ ┣ 📂 types
  ┃ ┃ ┗ 📜 finance.ts          # Zod UniversalDocumentSchema
  ┃ ┗ 📜 proxy.ts
  ┣ 📜 .env.local
  ┣ 📜 package.json
  ┗ 📜 tsconfig.json
+
 ```
 
------
+---
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Technologies Used
 
-  * **[Next.js 16.2 (App Router)](https://nextjs.org/)** - Escolhido pela facilidade em orquestrar Serverless Functions (para as APIs de extração) e suportar SSE nativo para o chat.
-  * **[TypeScript](https://www.typescriptlang.org/)** & **[Zod](https://zod.dev/)** - O coração da confiabilidade. Sem tipagem estrita e validação de Schema, os LLMs injetariam dados corrompidos na aplicação.
-  * **[Google Generative AI (Gemini 2.5 Flash)](https://ai.google.dev/)** - Escolhido para o Cérebro 1 por possuir alto limite de RPM gratuito e capacidade multimodal nativa de forçar respostas em `json_object` perfeitamente estruturadas.
-  * **[Groq (Llama-3.3-70b)](https://groq.com/)** - O Cérebro 2. Utilizado pela velocidade absurda de inferência (Tokens por segundo) para guiar o usuário em tempo real.
-  * **[Supabase (pgvector)](https://supabase.com/)** - Banco de dados PostgreSQL com extensão vetorial para buscas semânticas ultrarrápidas nas cartilhas do imposto de renda.
-  * **[Tailwind CSS v4](https://tailwindcss.com/) & [GSAP](https://gsap.com/)** - Estilização limpa, sem arquivos de configuração pesados, e animações profissionais.
+* **[Next.js 16.2 (App Router)](https://nextjs.org/)** - Chosen for the ease of orchestrating Serverless Functions (for extraction APIs) and supporting native SSE for the chat.
+* **[TypeScript](https://www.typescriptlang.org/)** & **[Zod](https://zod.dev/)** - The heart of reliability. Without strict typing and Schema validation, LLMs would inject corrupted data into the application.
+* **[Google Generative AI (Gemini 2.5 Flash)](https://ai.google.dev/)** - Chosen for Brain 1 due to its high free RPM limit and native multimodal capability to force perfectly structured `json_object` responses.
+* **[Groq (Llama-3.3-70b)](https://groq.com/)** - Brain 2. Used for its absurd inference speed (Tokens per second) to guide the user in real-time.
+* **[Supabase (pgvector)](https://supabase.com/)** - PostgreSQL database with vector extension for ultra-fast semantic searches in the income tax booklets.
+* **[Tailwind CSS v4](https://tailwindcss.com/) & [GSAP**](https://gsap.com/) - Clean styling, without heavy configuration files, and professional animations.
 
------
+---
 
-## 🗺️ Roadmap (Próximos Passos)
+## 🗺️ Roadmap (Next Steps)
 
-  - [ ] **Integração Real B3:** Testar e validar a taxonomia de Day-Trade vs. Operação Comum com notas SINACOR reais assim que os dados estiverem disponíveis.
-  - [ ] **Privacidade Absoluta (On-Device):** Estudar a viabilidade de empacotar o software (Tauri/Electron) e rodar LLMs locais via WebGPU ou Ollama no PC do usuário, garantindo que nenhum PDF contendo CPF saia da máquina local (100% Privacy).
-  - [ ] **Captação de Fomento:** Estruturar o projeto com métricas sólidas para submissão a editais estaduais de subvenção e inovação (ex: Fapesc).
-  - [ ] **Geração de Payload e-CAC:** Fazer com que a IA, além de aconselhar, gere um arquivo ou script compatível com a importação direta do programa PGD da Receita Federal.
+* [ ] **Real B3 Integration:** Test and validate the taxonomy of Day-Trade vs. Common Operation with real SINACOR notes as soon as the data is available.
+* [ ] **Absolute Privacy (On-Device):** Study the feasibility of packaging the software (Tauri/Electron) and running local LLMs via WebGPU or Ollama on the user's PC, ensuring that no PDF containing a CPF leaves the local machine (100% Privacy).
+* [ ] **Funding Capture:** Structure the project with solid metrics for submission to state grant and innovation public notices (e.g., Fapesc).
+* [ ] **e-CAC Payload Generation:** Make the AI, besides advising, generate a file or script compatible with direct importation into the Federal Revenue's PGD program.
 
------
+---
 
-## 💻 Como rodar localmente
+## 💻 How to run locally
 
-1.  **Clone este repositório:**
+1. **Clone this repository:**
+```bash
+git clone https://github.com/jefheee/irpf-copilot.git
 
-    ```bash
-    git clone https://github.com/jefheee/irpf-copilot.git
-    ```
+```
 
-2.  **Acesse a pasta:**
 
-    ```bash
-    cd irpf-copilot
-    ```
+2. **Access the folder:**
+```bash
+cd irpf-copilot
 
-3.  **Configure as Variáveis de Ambiente:**
-    Renomeie `.env.example` para `.env.local` e insira suas chaves (Google AI Studio, Groq, Supabase).
-    
-    ```
-    GOOGLE_API_KEY=sua_chave_gemini
-    GROQ_API_KEY=sua_chave_groq
-    NEXT_PUBLIC_SUPABASE_URL=seu_url_supabase
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_supabase
-    ```
-5.  **Instale as dependências:**
+```
 
-    ```bash
-    npm install
-    ```
 
-6.  **Inicie o ambiente de desenvolvimento:**
+3. **Configure Environment Variables:**
+Rename `.env.example` to `.env.local` and insert your keys (Google AI Studio, Groq, Supabase).
+```
+GOOGLE_API_KEY=your_gemini_key
+GROQ_API_KEY=your_groq_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-    ```bash
-    npm run dev
-    ```
+```
 
------
 
-*Arquitetura e Design por [Jefherson Luiz](https://github.com/jefheee) | IA Powered.*
+4. **Install dependencies:**
+```bash
+npm install
+
+```
+
+
+5. **Start the development environment:**
+```bash
+npm run dev
+
+```
+
+
+
+---
+
+*Architecture and Design by [Jefherson Luiz](https://github.com/jefheee) | AI Powered.*
